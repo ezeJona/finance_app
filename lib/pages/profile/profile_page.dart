@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hospired/providers/destroy_session.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../backend-api/api_service.dart';
 import '../../backend-api/dtos.dart';
@@ -17,7 +15,8 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   AppUserRes? userData;
-  PatientRes? patientData;
+  // Mantenemos la referencia al DTO existente para no romper la compatibilidad
+  PatientRes? entrepreneurData;
   bool isLoading = true;
 
   @override
@@ -31,18 +30,17 @@ class _ProfilePageState extends State<ProfilePage> {
     if (session == null) return;
 
     final appUser = await ApiService.getAppUser(session.id);
-    final patient = await ApiService.getPatient(session.id);
+    final patient = await ApiService.getPatient(session.id); // Consumo del método existente
 
     setState(() {
       userData = appUser;
-      patientData = patient;
+      entrepreneurData = patient; // Mapeado internamente como los datos del negocio
       isLoading = false;
     });
   }
 
   Future<void> _logout(BuildContext context) async {
     await ApiService.signOutUser();
-    // TODO: call destroySession();
     Navigator.pushReplacementNamed(context, '/login');
   }
 
@@ -50,7 +48,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Perfil'),
+        title: const Text('Mi Perfil Comercial'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -70,13 +68,13 @@ class _ProfilePageState extends State<ProfilePage> {
       return const Center(child: Text("No se encontraron datos del usuario."));
     }
 
+    // Redefinimos las etiquetas visuales para orientarlas al ecosistema emprendedor
     final Map<String, String> profileMap = {
-      "Nombre": "${userData!.firstName} ${userData!.secondName ?? ''}".trim(),
-      "Apellidos":
-          "${userData!.firstLastName} ${userData!.secondLastName ?? ''}".trim(),
-      "Cédula": patientData?.nationalId ?? "Sin registrar",
-      "Teléfono": patientData?.phoneNumber ?? "Sin registrar",
-      "Ocupación": patientData?.occupation ?? "Sin registrar",
+      "Propietario": "${userData!.firstName} ${userData!.secondName ?? ''}".trim(),
+      "Apellidos": "${userData!.firstLastName} ${userData!.secondLastName ?? ''}".trim(),
+      "Identificación / Cédula": entrepreneurData?.nationalId ?? "Sin registrar",
+      "Teléfono de Contacto": entrepreneurData?.phoneNumber ?? "Sin registrar",
+      "Giro Comercial / Ocupación": entrepreneurData?.occupation ?? "Sin registrar",
     };
 
     return Center(
@@ -92,9 +90,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: HospiredColors.primary.withOpacity(0.2),
+                      // Usamos el esquema de color existente pero con semántica de billetera/negocio
+                      backgroundColor: HospiredColors.primary.withOpacity(0.15),
                       child: const Icon(
-                        Icons.person,
+                        Icons.storefront_rounded, // Ícono comercial en lugar de médico/paciente
                         size: 50,
                         color: HospiredColors.primary,
                       ),
@@ -106,18 +105,18 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      patientData?.occupation ?? "Sin ocupación registrada",
+                      entrepreneurData?.occupation ?? "Emprendedor Independiente",
                       style: HospiredTextStyle.body3,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 32),
-              Text("Información Personal", style: HospiredTextStyle.title3),
+              Text("Información de la Microempresa", style: HospiredTextStyle.title3),
               const SizedBox(height: 8),
               ...profileMap.entries.map(
-                (entry) => Card(
-                  elevation: 2,
+                    (entry) => Card(
+                  elevation: 1,
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
                     leading: _getIconForKey(entry.key),
@@ -126,18 +125,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Center(
                 child: ElevatedButton.icon(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Próximamente: Editar Perfil"),
+                        content: Text("Próximamente: Modificar datos de facturación"),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.edit),
-                  label: const Text("Editar Perfil"),
+                  icon: const Icon(Icons.edit_note_rounded),
+                  label: const Text("Editar Información"),
                 ),
               ),
             ],
@@ -149,18 +148,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Icon _getIconForKey(String key) {
     switch (key) {
-      case "Nombre":
-        return const Icon(Icons.badge, color: HospiredColors.primary);
+      case "Propietario":
+        return const Icon(Icons.admin_panel_settings_rounded, color: HospiredColors.primary);
       case "Apellidos":
-        return const Icon(Icons.person, color: HospiredColors.primary);
-      case "Cédula":
-        return const Icon(Icons.credit_card, color: HospiredColors.primary);
-      case "Teléfono":
-        return const Icon(Icons.phone, color: HospiredColors.primary);
-      case "Ocupación":
-        return const Icon(Icons.work, color: HospiredColors.primary);
+        return const Icon(Icons.person_outline_rounded, color: HospiredColors.primary);
+      case "Identificación / Cédula":
+        return const Icon(Icons.badge_rounded, color: HospiredColors.primary);
+      case "Teléfono de Contacto":
+        return const Icon(Icons.phone_android_rounded, color: HospiredColors.primary);
+      case "Giro Comercial / Ocupación":
+        return const Icon(Icons.business_center_rounded, color: HospiredColors.primary);
       default:
-        return const Icon(Icons.info, color: HospiredColors.primary);
+        return const Icon(Icons.info_outline_rounded, color: HospiredColors.primary);
     }
   }
 }
