@@ -19,23 +19,30 @@ class BottomNavBar extends StatelessWidget {
       showUnselectedLabels: true,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.space_dashboard),
+          icon: Icon(Icons.space_dashboard_outlined),
+          activeIcon: Icon(Icons.space_dashboard),
           label: 'Dashboard',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today),
-          label: 'Citas',
+          icon: Icon(Icons.receipt_long_outlined),
+          activeIcon: Icon(Icons.receipt_long),
+          label: 'Historial',
         ),
-        /*
-        // Enable again when treatments logic is implemented
         BottomNavigationBarItem(
-          icon: Icon(Icons.medical_services),
-          label: 'Tratamiento',
+          icon: Icon(Icons.bar_chart_outlined),
+          activeIcon: Icon(Icons.bar_chart),
+          label: 'Reportes',
         ),
-        */
-        BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
-        BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.auto_awesome_outlined),
+          activeIcon: Icon(Icons.auto_awesome),
+          label: 'Asistente', // (Futura IA Financiera)
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Perfil',
+        ),
       ],
     );
   }

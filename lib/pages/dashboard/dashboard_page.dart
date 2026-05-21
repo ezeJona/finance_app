@@ -34,13 +34,13 @@ class DashboardPage extends StatelessWidget {
           child: Column(
             children: const [
               Text(
-                "¡Bienvenido estimado paciente!",
+                "¡Bienvenido a tu Panel Financiero!",
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 8),
               Text(
-                "Tu salud es nuestra prioridad.",
+                "Controla tus ingreos, egresos y el crecimiento de tu negocio",
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
@@ -56,10 +56,10 @@ class DashboardPage extends StatelessWidget {
           child: Column(
             children: [
               _buildCard(
-                title: "Sitio Oficial",
+                title: "Resumen de Cuenta",
                 description:
-                    "Visita nuestro sitio web para conocer más sobre Hospired.",
-                icon: Icons.language,
+                    "Aquí visualizaremos los balances diarios y mensuales pronto",
+                icon: Icons.account_balance_wallet,
                 onTap: () => _launchURL("https://hospired.github.io/hospired/"),
               ),
               const SizedBox(height: 16),

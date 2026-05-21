@@ -19,37 +19,32 @@ class SideNavBar extends StatelessWidget {
       destinations: const [
         NavigationRailDestination(
           padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.space_dashboard),
+          icon: Icon(Icons.space_dashboard_outlined),
+          selectedIcon: Icon(Icons.space_dashboard),
           label: Text('Dashboard'),
         ),
         NavigationRailDestination(
           padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.calendar_today),
-          label: Text('Citas'),
+          icon: Icon(Icons.receipt_long_outlined),
+          selectedIcon: Icon(Icons.receipt_long),
+          label: Text('Historial'), // Antiguas 'Citas'
         ),
-        /*
-        // Enable again when treatments logic is implemented
         NavigationRailDestination(
           padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.medical_services),
-          label: Text('Tratamiento'),
+          icon: Icon(Icons.bar_chart_outlined),
+          selectedIcon: Icon(Icons.bar_chart),
+          label: Text('Reportes'), // Antiguo 'Mapa'
         ),
-        */
         NavigationRailDestination(
           padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.map),
-          label: Text('Mapa'),
+          icon: Icon(Icons.auto_awesome_outlined),
+          selectedIcon: Icon(Icons.auto_awesome),
+          label: Text('Asistente'), // Antiguo 'Chat'
         ),
-
         NavigationRailDestination(
           padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.chat),
-          label: Text('Chat'),
-        ),
-
-        NavigationRailDestination(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.person),
+          icon: Icon(Icons.person_outline),
+          selectedIcon: Icon(Icons.person),
           label: Text('Perfil'),
         ),
       ],
