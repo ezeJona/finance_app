@@ -10,44 +10,77 @@ class SideNavBar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onTap;
 
+  // Colores de la UI de Balance para consistencia visual
+  static const Color primaryYellow = Color(0xFFF1C40F);
+  static const Color darkNavy = Color(0xFF2C3E50);
+  static const Color textGray = Color(0xFF7F8C8D);
+
   @override
   Widget build(BuildContext context) {
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (index) => onTap(index),
-      labelType: NavigationRailLabelType.all,
-      destinations: const [
-        NavigationRailDestination(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.space_dashboard_outlined),
-          selectedIcon: Icon(Icons.space_dashboard),
-          label: Text('Balance'),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(
+            color: Colors.black.withOpacity(0.05), // Separación sutil vertical
+            width: 1,
+          ),
         ),
-        NavigationRailDestination(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.receipt_long_outlined),
-          selectedIcon: Icon(Icons.receipt_long),
-          label: Text('Historial'), // Antiguas 'Citas'
+      ),
+      child: NavigationRail(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (index) => onTap(index),
+        labelType: NavigationRailLabelType.all,
+        backgroundColor: Colors.transparent, // Adopta el fondo del contenedor padre
+
+        // Estilización Material 3 para combinar con Balance
+        indicatorColor: primaryYellow.withOpacity(0.2), // Color de la píldora de selección
+        selectedIconTheme: const IconThemeData(color: darkNavy, size: 26),
+        unselectedIconTheme: IconThemeData(color: textGray.withOpacity(0.6), size: 24),
+        selectedLabelTextStyle: const TextStyle(
+          color: darkNavy,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
         ),
-        NavigationRailDestination(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.bar_chart_outlined),
-          selectedIcon: Icon(Icons.bar_chart),
-          label: Text('Reportes'), // Antiguo 'Mapa'
+        unselectedLabelTextStyle: TextStyle(
+          color: textGray.withOpacity(0.6),
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
         ),
-        NavigationRailDestination(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.auto_awesome_outlined),
-          selectedIcon: Icon(Icons.auto_awesome),
-          label: Text('Asistente'), // Antiguo 'Chat'
-        ),
-        NavigationRailDestination(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
-          label: Text('Perfil'),
-        ),
-      ],
+
+        destinations: const [
+          NavigationRailDestination(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            icon: Icon(Icons.space_dashboard_outlined),
+            selectedIcon: Icon(Icons.space_dashboard),
+            label: Text('Balance'),
+          ),
+          NavigationRailDestination(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: Text('Historial'),
+          ),
+          NavigationRailDestination(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: Text('Reportes'),
+          ),
+          NavigationRailDestination(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: Text('Asistente'),
+          ),
+          NavigationRailDestination(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: Text('Perfil'),
+          ),
+        ],
+      ),
     );
   }
 }

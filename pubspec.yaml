@@ -30,7 +30,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_maps_flutter: ^2.13.1
   shared_preferences: ^2.5.3
   supabase_flutter: ^2.12.4
   http: ^0.13.6
