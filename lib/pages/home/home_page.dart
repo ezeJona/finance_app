@@ -8,7 +8,7 @@ import '../../providers/auth_user.dart';
 import '../../providers/app_user.dart';
 import '../../providers/patient.dart';
 import '../../text_styles.dart';
-import '../dashboard/dashboard_page.dart';
+import '../dashboard/balance_page.dart';
 import '../profile/profile_page.dart';
 import '../chat/chat_page.dart';
 import 'bottom_nav_bar.dart';
@@ -116,7 +116,7 @@ class HomePage extends HookConsumerWidget {
     Widget _getScreen(int index) {
       switch (index) {
         case 0:
-          return DashboardPage(onSelectNavIndex: onSelectNavigationIndex);
+          return const BalancePage();
         case 3:
           return const ChatPage(); // Asistente IA!
         case 4:

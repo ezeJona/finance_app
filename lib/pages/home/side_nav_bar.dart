@@ -21,7 +21,7 @@ class SideNavBar extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 8),
           icon: Icon(Icons.space_dashboard_outlined),
           selectedIcon: Icon(Icons.space_dashboard),
-          label: Text('Dashboard'),
+          label: Text('Balance'),
         ),
         NavigationRailDestination(
           padding: EdgeInsets.symmetric(vertical: 8),

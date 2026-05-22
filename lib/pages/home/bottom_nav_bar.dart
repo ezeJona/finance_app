@@ -21,7 +21,7 @@ class BottomNavBar extends StatelessWidget {
         BottomNavigationBarItem(
           icon: Icon(Icons.space_dashboard_outlined),
           activeIcon: Icon(Icons.space_dashboard),
-          label: 'Dashboard',
+          label: 'Balance',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.receipt_long_outlined),
