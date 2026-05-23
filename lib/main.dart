@@ -6,6 +6,7 @@ import 'backend-api/init_supabase.dart';
 import 'notifications_service.dart';
 import 'pages/home/home_page.dart';
 import 'pages/start_page.dart';
+import 'pages/user/welcome_page.dart';
 import 'pages/user/login_page.dart';
 import 'pages/user/setup_user_page.dart';
 import 'pages/user/sign_up_page.dart';
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/start',
       routes: {
         '/start': (context) => const StartPage(),
+        '/welcome': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginPage(),
         '/login/sign-up': (context) => const SignUpPage(),
         '/setup-user': (context) => const SetupUserPage(),

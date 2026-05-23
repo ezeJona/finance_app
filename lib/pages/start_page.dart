@@ -18,7 +18,7 @@ class StartPage extends HookConsumerWidget {
       if (authUserRes != null) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
       } else {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (_) => false);
       }
     }, []);
 
