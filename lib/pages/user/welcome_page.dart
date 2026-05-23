@@ -111,7 +111,7 @@ class OnboardingScreen extends StatelessWidget {
       height: 56, // Altura generosa y cómoda para el pulgar
       child: FilledButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/login');
+          Navigator.pushNamed(context, '/login/sign-up');
         },
         style: FilledButton.styleFrom(
           backgroundColor: darkNavy,
@@ -138,7 +138,7 @@ class OnboardingScreen extends StatelessWidget {
       height: 56,
       child: OutlinedButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/login/sign-up');
+          Navigator.pushNamed(context, '/login');
         },
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.transparent,
