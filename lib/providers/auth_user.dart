@@ -7,8 +7,8 @@ import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
 
 final authUserProvider = StateNotifierProvider<AuthUserNotifier, AuthUserRes?>((
-  _,
-) {
+    _,
+    ) {
   return AuthUserNotifier();
 });
 

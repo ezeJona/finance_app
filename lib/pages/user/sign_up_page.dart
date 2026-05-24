@@ -29,8 +29,20 @@ class SignUpPage extends HookConsumerWidget {
     final acceptTerms = useState<bool>(false);
 
     final signUp = useCallback(() async {
-      String pw1 = password1Controller.text;
-      String pw2 = password2Controller.text;
+      final email = emailController.text.trim();
+      final pw1 = password1Controller.text.trim();
+      final pw2 = password2Controller.text.trim();
+
+      if (email.isEmpty) {
+        error.value = "Por favor, ingresa tu correo electrónico";
+        return;
+      }
+
+      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+        error.value = "Por favor, ingresa un correo electrónico válido";
+        return;
+      }
+
       if (pw1 != pw2) {
         error.value = "Las contraseñas no coinciden";
         return;
@@ -41,14 +53,20 @@ class SignUpPage extends HookConsumerWidget {
       }
       try {
         signUpInProcess.value = true;
-        await ApiService.signUpUser(emailController.text, pw2);
+        error.value = ""; // Limpiar error previo
+        await ApiService.signUpUser(email, pw2);
         signUpSuccessful.value = true;
       } catch (e) {
-        error.value = "Error al registrarte. Vuelve a intentarlo";
+        // Capturamos el error real para mostrarlo
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith("Exception: ")) {
+          errorMessage = errorMessage.substring(11);
+        }
+        error.value = errorMessage;
       } finally {
         signUpInProcess.value = false;
       }
-    }, []);
+    }, [emailController, password1Controller, password2Controller]);
 
     return Scaffold(
       backgroundColor: Colors.white, // Fondo limpio de la referencia
@@ -80,11 +98,11 @@ class SignUpPage extends HookConsumerWidget {
                           const SizedBox(height: 8),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(2),
-                            child: const LinearProgressIndicator(
-                              value: 0.35, // Representa el paso actual
+                            child: LinearProgressIndicator(
+                              value: signUpSuccessful.value ? 1.0 : 0.35, // 100% si el registro fue exitoso
                               minHeight: 4,
                               backgroundColor: lightGray,
-                              valueColor: AlwaysStoppedAnimation<Color>(emeraldGreen),
+                              valueColor: const AlwaysStoppedAnimation<Color>(emeraldGreen),
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -233,55 +251,108 @@ class SignUpPage extends HookConsumerWidget {
                               ),
                             ),
                           ] else ...[
-                            // Estado de Éxito en el Registro
+                            // Estado de Éxito en el Registro - UX Mejorada y Compacta
                             Expanded(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.mark_email_read_outlined, size: 72, color: emeraldGreen),
-                                  const SizedBox(height: 24),
-                                  Text(
-                                    "¡Cuenta creada con éxito!",
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkNavy),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: emeraldGreen.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.mark_email_read_rounded,
+                                      size: 64,
+                                      color: emeraldGreen,
+                                    ),
                                   ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "Revisa tu correo electrónico\n${emailController.text}\ny haz clic en el enlace para activar tu cuenta.\n\nDespués regresa para iniciar sesión.",
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    "¡Verifica tu correo!",
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkNavy,
+                                    ),
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 15, color: textGray, height: 1.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: const TextStyle(fontSize: 15, color: textGray, height: 1.4),
+                                      children: [
+                                        const TextSpan(text: "Enviamos un enlace a:\n"),
+                                        TextSpan(
+                                          text: emailController.text,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: darkNavy,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: lightGray.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.info_outline, color: darkNavy, size: 18),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            "Revisa tu bandeja de entrada o spam para activar tu cuenta.",
+                                            style: TextStyle(fontSize: 13, color: textGray),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(height: 24),
                             SizedBox(
                               height: 56,
                               child: FilledButton(
-                                onPressed: () => Navigator.of(context).pop(),
+                                onPressed: () {
+                                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                                },
                                 style: FilledButton.styleFrom(
                                   backgroundColor: darkNavy,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                 ),
-                                child: const Text("Ir al inicio", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  "Ir a Iniciar Sesión",
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ),
                           ],
                           const SizedBox(height: 16),
 
-                          // 6. TEXTO DE ALTERNATIVA INTERACTIVO
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('¿Ya tienes una cuenta? ', style: TextStyle(color: textGray, fontSize: 14)),
-                              GestureDetector(
-                                onTap: () => Navigator.of(context).pop(), // Ajusta según tu flujo de login
-                                child: const Text(
-                                  'Inicia Sesión',
-                                  style: TextStyle(color: darkNavy, fontWeight: FontWeight.bold, fontSize: 14),
+                          // 6. TEXTO DE ALTERNATIVA INTERACTIVO (Solo se muestra si no ha tenido éxito)
+                          if (!signUpSuccessful.value)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('¿Ya tienes una cuenta? ', style: TextStyle(color: textGray, fontSize: 14)),
+                                GestureDetector(
+                                  onTap: () => Navigator.of(context).pop(),
+                                  child: const Text(
+                                    'Inicia Sesión',
+                                    style: TextStyle(color: darkNavy, fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
                           const SizedBox(height: 16),
                         ],
                       ),
