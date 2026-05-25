@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../providers/app_user.dart';
+import '../../providers/business.dart';
 
-class BalancePage extends StatelessWidget {
+class BalancePage extends HookConsumerWidget {
   const BalancePage({super.key});
 
-  // Paleta de Colores basada en la referencia
+  // Paleta de Colores
   static const Color primaryYellow = Color(0xFFF1C40F);
   static const Color backgroundColor = Color(0xFFF5F6F8);
   static const Color darkNavy = Color(0xFF2C3E50);
@@ -12,7 +15,10 @@ class BalancePage extends StatelessWidget {
   static const Color textGray = Color(0xFF7F8C8D);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appUser = ref.watch(appUserProvider);
+    final business = ref.watch(businessProvider);
+
     return Material(
       color: backgroundColor,
       child: SafeArea(
@@ -21,7 +27,7 @@ class BalancePage extends StatelessWidget {
           children: [
             Column(
               children: [
-                _buildHeader(context),
+                _buildHeader(context, appUser, business),
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -47,9 +53,20 @@ class BalancePage extends StatelessWidget {
     );
   }
 
-  // 1. ENCABEZADO AMARILLO (Header Custom)
-  Widget _buildHeader(BuildContext context) {
+  // Header Custom
+  Widget _buildHeader(BuildContext context, dynamic appUser, dynamic business) {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
+    
+    String displayName = "Cargando...";
+    if (appUser != null) {
+      displayName = "${appUser.firstName} ${appUser.firstLastName}";
+      if (displayName.length > 20) {
+        displayName = "${displayName.substring(0, 17)}...";
+      }
+    }
+
+    String displayAccount = business?.businessType ?? "Personal";
+
     return Container(
       padding: EdgeInsets.only(top: statusBarHeight + 16, left: 16, right: 16, bottom: 20),
       decoration: const BoxDecoration(
@@ -69,17 +86,22 @@ class BalancePage extends StatelessWidget {
                 backgroundColor: Colors.white.withOpacity(0.3),
                 child: const Icon(Icons.attach_money, color: Colors.white),
               ),
-              Column(
-                children: [
-                  const Text(
-                    'Ivon Lorena León R...',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  Text(
-                    'Cuenta personal',
-                    style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8)),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      displayName,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Cuenta $displayAccount',
+                      style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
               CircleAvatar(
                 backgroundColor: Colors.white.withOpacity(0.3),
@@ -384,6 +406,4 @@ class BalancePage extends StatelessWidget {
       ),
     );
   }
-
-
 }
