@@ -21,21 +21,6 @@ class ApiService {
     }
   }
 
-  static Future<AppointmentRes> createAppointment(
-      CreateAppointmentReq req,
-      ) async {
-    try {
-      final Map<String, dynamic> response = await _supabase
-          .from('appointments')
-          .insert(req.toJson())
-          .select()
-          .single();
-      return AppointmentRes.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to create appointment: $e');
-    }
-  }
-
   static Future<AppUserRes> createAppUser(CreateAppUserReq req) async {
     try {
       final Map<String, dynamic> response = await _supabase
@@ -62,27 +47,6 @@ class ApiService {
     }
   }
 
-  static Future<List<AppointmentRes>?> getAppointmentsByPatientId(
-      int patientId,
-      ) async {
-    try {
-      final List<dynamic> response = await _supabase
-          .from('appointments')
-          .select()
-          .eq('patient_id', patientId);
-      if (response.isNotEmpty) {
-        return response
-            .map(
-              (json) => AppointmentRes.fromJson(json as Map<String, dynamic>),
-        )
-            .toList();
-      }
-      return [];
-    } catch (e) {
-      throw Exception('Failed to fetch apppointments by patient id: $e');
-    }
-  }
-
   static Future<AppUserRes?> getAppUser(String id) async {
     try {
       final Map<String, dynamic>? response = await _supabase
@@ -96,53 +60,6 @@ class ApiService {
       return null;
     } catch (e) {
       throw Exception('Failed to fetch app user: $e');
-    }
-  }
-
-  static Future<List<HealthcareFacilityRes>> getHealthcareFacilities() async {
-    try {
-      final List<dynamic> response =
-      await _supabase.from('healthcare_facilities').select();
-
-      return response
-          .map((json) => HealthcareFacilityRes.fromJson(json))
-          .toList();
-    } catch (e) {
-      throw Exception('Failed to fetch healthcare facilities: $e');
-    }
-  }
-
-  static Future<HealthcareFacilityRes?> getHealthcareFacility(int id) async {
-    try {
-      final Map<String, dynamic>? response = await _supabase
-          .from('healthcare_facilities')
-          .select()
-          .eq('id', id)
-          .maybeSingle();
-
-      if (response != null) {
-        return HealthcareFacilityRes.fromJson(response);
-      }
-      return null;
-    } catch (e) {
-      throw Exception('Failed to fetch healthcare facility: $e');
-    }
-  }
-
-  static Future<FacilityUnitRes?> getFacilityUnit(int id) async {
-    try {
-      final Map<String, dynamic>? response = await _supabase
-          .from('facility_units')
-          .select()
-          .eq('id', id)
-          .maybeSingle();
-
-      if (response != null) {
-        return FacilityUnitRes.fromJson(response);
-      }
-      return null;
-    } catch (e) {
-      throw Exception('Failed to fetch facility unit: $e');
     }
   }
 
