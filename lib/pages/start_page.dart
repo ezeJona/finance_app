@@ -5,7 +5,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../colors.dart';
 import '../text_styles.dart';
 import '../providers/auth_user.dart';
-import '../providers/municipalities.dart';
 
 class StartPage extends HookConsumerWidget {
   const StartPage({super.key});
@@ -26,12 +25,6 @@ class StartPage extends HookConsumerWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         checkSessionState();
       });
-      return;
-    }, []);
-
-    useEffect(() {
-      // fetch all municipalities on startup
-      ref.read(municipalitiesProvider.notifier).fetch();
       return;
     }, []);
 

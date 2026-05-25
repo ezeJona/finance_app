@@ -49,16 +49,16 @@ class ApiService {
     }
   }
 
-  static Future<PatientRes> createPatient(CreatePatientReq req) async {
+  static Future<BusinessRes> createBusiness(CreateBusinessReq req) async {
     try {
       final Map<String, dynamic> response = await _supabase
-          .from('patients')
+          .from('businesses')
           .insert(req.toJson())
           .select()
           .single();
-      return PatientRes.fromJson(response);
+      return BusinessRes.fromJson(response);
     } catch (e) {
-      throw Exception('Failed to create patient: $e');
+      throw Exception('Failed to create business: $e');
     }
   }
 
@@ -160,19 +160,19 @@ class ApiService {
     }
   }
 
-  static Future<PatientRes?> getPatient(String appUserId) async {
+  static Future<BusinessRes?> getBusiness(String userId) async {
     try {
       final Map<String, dynamic>? response = await _supabase
-          .from('patients')
+          .from('businesses')
           .select()
-          .eq('app_user_id', appUserId)
+          .eq('user_id', userId)
           .maybeSingle();
       if (response != null) {
-        return PatientRes.fromJson(response);
+        return BusinessRes.fromJson(response);
       }
       return null;
     } catch (e) {
-      throw Exception('Failed to fetch patient: $e');
+      throw Exception('Failed to fetch business: $e');
     }
   }
 

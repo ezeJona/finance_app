@@ -7,8 +7,7 @@ import '../../backend-api/dtos.dart';
 import '../../colors.dart';
 import '../../providers/app_user.dart';
 import '../../providers/auth_user.dart';
-import '../../providers/municipalities.dart';
-import '../../providers/patient.dart';
+import '../../providers/business.dart';
 import '../../text_styles.dart';
 import '../../ui/alert_dialogs.dart';
 
@@ -23,24 +22,22 @@ class SetupUserPage extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🎛️ LOGICA Y PROVIDERS ORIGINALES (Intactas)
+    // 🎛️ LOGICA Y PROVIDERS
     final authUser = ref.watch(authUserProvider);
-    final municipalities = ref.watch(municipalitiesProvider);
 
     final creatingUser = useState<bool>(false);
     final error = useState<String>("");
-    final setupStep = useState<int>(0); // 0: setup app_user, 1: setup patient
+    final setupStep = useState<int>(0); // 0: setup app_user, 1: setup business
 
     final TextEditingController firstNameController = useTextEditingController();
     final TextEditingController secondNameController = useTextEditingController();
     final TextEditingController firstLastNameController = useTextEditingController();
     final TextEditingController secondLastNameController = useTextEditingController();
-    final TextEditingController nationalIdController = useTextEditingController();
-    final TextEditingController inssIdController = useTextEditingController();
-    final TextEditingController phoneNumberController = useTextEditingController();
-    final TextEditingController districtController = useTextEditingController();
-    final TextEditingController occupationController = useTextEditingController();
-    final selectedMunicipality = useState<MunicipalityRes?>(null);
+    
+    // Business Controllers
+    final TextEditingController businessNameController = useTextEditingController();
+    final businessType = useState<String>("Personal");
+    final currencyCode = useState<String>("NIO");
 
     final dateOfBirth = useState<DateTime?>(null);
 
@@ -72,11 +69,6 @@ class SetupUserPage extends HookConsumerWidget {
     }, []);
 
     final callCreateAppUser = useCallback((BuildContext context) async {
-      String firstName = firstNameController.text;
-      String secondName = secondNameController.text;
-      String firstLastName = firstLastNameController.text;
-      String secondLastName = secondLastNameController.text;
-
       if (authUser != null) {
         creatingUser.value = true;
         error.value = "";
@@ -84,28 +76,25 @@ class SetupUserPage extends HookConsumerWidget {
           final AppUserRes createdUser = await ApiService.createAppUser(
             CreateAppUserReq(
               id: authUser.id,
-              firstName: firstName,
-              secondName: secondName,
-              firstLastName: firstLastName,
-              secondLastName: secondLastName,
+              firstName: firstNameController.text,
+              secondName: secondNameController.text,
+              firstLastName: firstLastNameController.text,
+              secondLastName: secondLastNameController.text,
               dateOfBirth: dateOfBirth.value,
             ),
           );
-          final PatientRes patient = await ApiService.createPatient(
-            CreatePatientReq(
-              appUserId: createdUser.id,
-              nationalId: nationalIdController.text,
-              municipalityId: selectedMunicipality.value!.id,
-              inssId: inssIdController.text.isNotEmpty
-                  ? int.tryParse(inssIdController.text)
-                  : null,
-              phoneNumber: phoneNumberController.text,
-              occupation: occupationController.text,
-              neighborHood: districtController.text,
+          
+          final BusinessRes business = await ApiService.createBusiness(
+            CreateBusinessReq(
+              userId: createdUser.id,
+              name: businessNameController.text,
+              businessType: businessType.value,
+              currencyCode: currencyCode.value,
             ),
           );
+          
           ref.read(appUserProvider.notifier).set(createdUser);
-          ref.read(patientProvider.notifier).set(patient);
+          ref.read(businessProvider.notifier).set(business);
           Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         } catch (err) {
           error.value = err.toString();
@@ -115,7 +104,7 @@ class SetupUserPage extends HookConsumerWidget {
       } else {
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
-    }, []);
+    }, [authUser, dateOfBirth.value, businessType.value, currencyCode.value]);
 
     final continueButtonPressed = useCallback((BuildContext context) async {
       if (creatingUser.value) {
@@ -131,24 +120,19 @@ class SetupUserPage extends HookConsumerWidget {
         }
         setupStep.value = 1;
       } else {
-        if (nationalIdController.text.isEmpty) {
+        if (businessNameController.text.isEmpty) {
           await showIncompleteUserInputsDialog(
             context,
-            "Debe ingresar su número de Cédula.",
+            "Debe ingresar el nombre de su negocio.",
           );
           return;
         }
         callCreateAppUser(context);
       }
-    }, []);
-
-    useEffect(() {
-      ref.read(municipalitiesProvider.notifier).fetch();
-      return;
-    }, []);
+    }, [setupStep.value, creatingUser.value]);
 
     return Scaffold(
-      backgroundColor: Colors.white, // Fondo limpio unificado
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -161,7 +145,7 @@ class SetupUserPage extends HookConsumerWidget {
       ),
       body: SafeArea(
         child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(), // Cierre de teclado optimizado
+          onTap: () => FocusScope.of(context).unfocus(),
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
@@ -175,12 +159,11 @@ class SetupUserPage extends HookConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // 1. INDICADOR DE PROGRESO SUPERIOR
                           const SizedBox(height: 8),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(2),
                             child: LinearProgressIndicator(
-                              value: setupStep.value == 0 ? 0.75 : 1.0, // Progreso: 75% info personal, 100% negocio
+                              value: setupStep.value == 0 ? 0.75 : 1.0,
                               minHeight: 4,
                               backgroundColor: lightGray,
                               valueColor: const AlwaysStoppedAnimation<Color>(emeraldGreen),
@@ -188,11 +171,10 @@ class SetupUserPage extends HookConsumerWidget {
                           ),
                           const SizedBox(height: 32),
 
-                          // 2. TEXTOS DE ENCABEZADO DINÁMICOS
                           Text(
                             setupStep.value == 0
                                 ? "Cuéntanos sobre ti"
-                                : "Configura tu negocio y contacto",
+                                : "Configura tu negocio",
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -204,7 +186,7 @@ class SetupUserPage extends HookConsumerWidget {
                           Text(
                             setupStep.value == 0
                                 ? "Completa tus nombres y fecha de nacimiento para tu perfil oficial."
-                                : "Ingresa tus identificaciones y locación para habilitar los reportes.",
+                                : "Ingresa los detalles de tu negocio para comenzar a gestionar tus finanzas.",
                             style: const TextStyle(
                               fontSize: 16,
                               color: textGray,
@@ -212,7 +194,6 @@ class SetupUserPage extends HookConsumerWidget {
                             ),
                           ),
 
-                          // Muestra de correo electrónico de cuenta activa de forma elegante
                           if (authUser?.email != null) ...[
                             const SizedBox(height: 12),
                             Text(
@@ -226,7 +207,6 @@ class SetupUserPage extends HookConsumerWidget {
                           ],
                           const SizedBox(height: 32),
 
-                          // 3. MANEJO DE ERRORES VISUALES
                           if (error.value.isNotEmpty) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -242,7 +222,6 @@ class SetupUserPage extends HookConsumerWidget {
                             const SizedBox(height: 20),
                           ],
 
-                          // 4. FLUJO DINÁMICO DE ENTRADAS DE TEXTO Y SELECTORES
                           if (setupStep.value == 0) ...[
                             _buildCustomTextField(
                               controller: firstNameController,
@@ -279,7 +258,6 @@ class SetupUserPage extends HookConsumerWidget {
                             ),
                             const SizedBox(height: 20),
 
-                            // Selector de Fecha de Nacimiento Estilizado
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -325,38 +303,28 @@ class SetupUserPage extends HookConsumerWidget {
                             ),
                           ] else ...[
                             _buildCustomTextField(
-                              controller: nationalIdController,
-                              labelText: "Cédula",
-                              hintText: "123-456789-0001A",
+                              controller: businessNameController,
+                              labelText: "Nombre del Negocio",
+                              hintText: "Mi Empresa S.A.",
                               isRequired: true,
                               readOnly: creatingUser.value,
                               onChanged: (value) => error.value = "",
                             ),
                             const SizedBox(height: 20),
-                            _buildCustomTextField(
-                              controller: inssIdController,
-                              labelText: "Número INSS",
-                              hintText: "12345678",
-                              readOnly: creatingUser.value,
-                              onChanged: (value) => error.value = "",
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Selector Dropdown Municipalidad Estilizado a la Línea Gráfica
+                            
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  "Municipio",
+                                  "Tipo de Negocio",
                                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkNavy),
                                 ),
                                 const SizedBox(height: 8),
-                                DropdownButtonFormField<MunicipalityRes>(
+                                DropdownButtonFormField<String>(
+                                  value: businessType.value,
                                   style: const TextStyle(fontSize: 16, color: darkNavy),
                                   icon: const Icon(Icons.keyboard_arrow_down_rounded, color: darkNavy),
                                   decoration: InputDecoration(
-                                    hintText: "Selecciona tu municipio",
-                                    hintStyle: const TextStyle(color: Colors.black26),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -367,53 +335,51 @@ class SetupUserPage extends HookConsumerWidget {
                                       borderSide: const BorderSide(color: darkNavy, width: 2),
                                     ),
                                   ),
-                                  initialValue: selectedMunicipality.value,
-                                  onChanged: creatingUser.value
-                                      ? null
-                                      : (MunicipalityRes? municipality) {
-                                    selectedMunicipality.value = municipality;
-                                  },
-                                  items: municipalities?.map<DropdownMenuItem<MunicipalityRes>>((
-                                      MunicipalityRes municipality,
-                                      ) {
-                                    return DropdownMenuItem<MunicipalityRes>(
-                                      value: municipality,
-                                      child: Text(municipality.name),
-                                    );
-                                  }).toList() ?? [],
+                                  onChanged: creatingUser.value ? null : (val) => businessType.value = val!,
+                                  items: ["Personal", "Comercial", "Servicios", "Otro"]
+                                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                                      .toList(),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 20),
-                            _buildCustomTextField(
-                              controller: districtController,
-                              labelText: "Residencial, Barrio, Comarca o Distrito",
-                              hintText: "Bosques de Altamira",
-                              readOnly: creatingUser.value,
-                              onChanged: (value) => error.value = "",
-                            ),
-                            const SizedBox(height: 20),
-                            _buildCustomTextField(
-                              controller: occupationController,
-                              labelText: "Ocupación",
-                              hintText: "Fisioterapeuta",
-                              readOnly: creatingUser.value,
-                              onChanged: (value) => error.value = "",
-                            ),
-                            const SizedBox(height: 20),
-                            _buildCustomTextField(
-                              controller: phoneNumberController,
-                              labelText: "Número de teléfono",
-                              hintText: "8512 3456",
-                              readOnly: creatingUser.value,
-                              onChanged: (value) => error.value = "",
+
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Moneda Principal",
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkNavy),
+                                ),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<String>(
+                                  value: currencyCode.value,
+                                  style: const TextStyle(fontSize: 16, color: darkNavy),
+                                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: darkNavy),
+                                  decoration: InputDecoration(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: const BorderSide(color: darkNavy, width: 1.5),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: const BorderSide(color: darkNavy, width: 2),
+                                    ),
+                                  ),
+                                  onChanged: creatingUser.value ? null : (val) => currencyCode.value = val!,
+                                  items: [
+                                    {"code": "NIO", "name": "Córdoba (NIO)"},
+                                    {"code": "USD", "name": "Dólar (USD)"},
+                                  ].map((e) => DropdownMenuItem(value: e["code"]!, child: Text(e["name"]!))).toList(),
+                                ),
+                              ],
                             ),
                           ],
 
-                          const Spacer(), // Empuja el botón al fondo de forma fluida
+                          const Spacer(),
                           const SizedBox(height: 32),
 
-                          // 5. BOTÓN PRINCIPAL DE ACCIÓN OVALADO
                           SizedBox(
                             height: 56,
                             child: FilledButton(
@@ -449,7 +415,6 @@ class SetupUserPage extends HookConsumerWidget {
     );
   }
 
-  // Helper modular e inyectable de inputs alineado con Sign Up e imágenes de referencia
   Widget _buildCustomTextField({
     required TextEditingController controller,
     required String labelText,

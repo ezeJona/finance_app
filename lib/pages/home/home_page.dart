@@ -6,7 +6,7 @@ import '../../breakpoints.dart';
 import '../../colors.dart';
 import '../../providers/auth_user.dart';
 import '../../providers/app_user.dart';
-import '../../providers/patient.dart';
+import '../../providers/business.dart';
 import '../../text_styles.dart';
 import '../dashboard/balance_page.dart';
 import '../profile/profile_page.dart';
@@ -65,7 +65,7 @@ class HomePage extends HookConsumerWidget {
     }, [authUser]);
 
     useEffect(() {
-      ref.read(patientProvider.notifier).fetch();
+      ref.read(businessProvider.notifier).fetch();
       return;
     }, []);
 

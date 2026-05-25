@@ -15,8 +15,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   AppUserRes? userData;
-  // Mantenemos la referencia al DTO existente para no romper la compatibilidad
-  PatientRes? entrepreneurData;
+  BusinessRes? businessData;
   bool isLoading = true;
 
   @override
@@ -30,11 +29,11 @@ class _ProfilePageState extends State<ProfilePage> {
     if (session == null) return;
 
     final appUser = await ApiService.getAppUser(session.id);
-    final patient = await ApiService.getPatient(session.id); // Consumo del método existente
+    final business = await ApiService.getBusiness(session.id);
 
     setState(() {
       userData = appUser;
-      entrepreneurData = patient; // Mapeado internamente como los datos del negocio
+      businessData = business;
       isLoading = false;
     });
   }
@@ -68,13 +67,12 @@ class _ProfilePageState extends State<ProfilePage> {
       return const Center(child: Text("No se encontraron datos del usuario."));
     }
 
-    // Redefinimos las etiquetas visuales para orientarlas al ecosistema emprendedor
     final Map<String, String> profileMap = {
       "Propietario": "${userData!.firstName} ${userData!.secondName ?? ''}".trim(),
       "Apellidos": "${userData!.firstLastName} ${userData!.secondLastName ?? ''}".trim(),
-      "Identificación / Cédula": entrepreneurData?.nationalId ?? "Sin registrar",
-      "Teléfono de Contacto": entrepreneurData?.phoneNumber ?? "Sin registrar",
-      "Giro Comercial / Ocupación": entrepreneurData?.occupation ?? "Sin registrar",
+      "Nombre del Negocio": businessData?.name ?? "Sin registrar",
+      "Tipo de Negocio": businessData?.businessType ?? "Sin registrar",
+      "Moneda Principal": businessData?.currencyCode ?? "Sin registrar",
     };
 
     return Center(
@@ -90,10 +88,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      // Usamos el esquema de color existente pero con semántica de billetera/negocio
                       backgroundColor: HospiredColors.primary.withOpacity(0.15),
                       child: const Icon(
-                        Icons.storefront_rounded, // Ícono comercial en lugar de médico/paciente
+                        Icons.storefront_rounded,
                         size: 50,
                         color: HospiredColors.primary,
                       ),
@@ -105,7 +102,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      entrepreneurData?.occupation ?? "Emprendedor Independiente",
+                      businessData?.name ?? "Emprendedor Independiente",
                       style: HospiredTextStyle.body3,
                     ),
                   ],
@@ -152,12 +149,12 @@ class _ProfilePageState extends State<ProfilePage> {
         return const Icon(Icons.admin_panel_settings_rounded, color: HospiredColors.primary);
       case "Apellidos":
         return const Icon(Icons.person_outline_rounded, color: HospiredColors.primary);
-      case "Identificación / Cédula":
-        return const Icon(Icons.badge_rounded, color: HospiredColors.primary);
-      case "Teléfono de Contacto":
-        return const Icon(Icons.phone_android_rounded, color: HospiredColors.primary);
-      case "Giro Comercial / Ocupación":
-        return const Icon(Icons.business_center_rounded, color: HospiredColors.primary);
+      case "Nombre del Negocio":
+        return const Icon(Icons.business_rounded, color: HospiredColors.primary);
+      case "Tipo de Negocio":
+        return const Icon(Icons.category_rounded, color: HospiredColors.primary);
+      case "Moneda Principal":
+        return const Icon(Icons.payments_rounded, color: HospiredColors.primary);
       default:
         return const Icon(Icons.info_outline_rounded, color: HospiredColors.primary);
     }

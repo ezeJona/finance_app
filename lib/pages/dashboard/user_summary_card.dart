@@ -7,15 +7,20 @@ class UserSummaryCard extends StatelessWidget {
   const UserSummaryCard({
     super.key,
     required this.appUser,
-    required this.patient,
+    required this.business,
   });
 
   final AppUserRes appUser;
-  final PatientRes patient;
+  final BusinessRes business;
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -26,8 +31,14 @@ class UserSummaryCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                   const Text(
+                    "Usuario",
+                    style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     "${appUser.firstName}${appUser.secondName != null ? ' ${appUser.secondName}' : ' '}${appUser.firstLastName}${appUser.secondLastName != null ? ' ${appUser.secondLastName}' : ' '}",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -37,15 +48,21 @@ class UserSummaryCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text("Cédula", style: HospiredTextStyle.body2Bold),
-                  const SizedBox(height: 2),
-                  Text(patient.nationalId, style: HospiredTextStyle.body2),
-                  const SizedBox(height: 12),
-                  if (patient.inssId != null) ...[
-                    Text("No INSS", style: HospiredTextStyle.body2Bold),
-                    const SizedBox(height: 2),
-                    Text("${patient.inssId}", style: HospiredTextStyle.body2),
-                  ],
+                  const Text(
+                    "Negocio",
+                    style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    business.name,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF00A86B)),
+                    textAlign: TextAlign.end,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${business.businessType} • ${business.currencyCode}",
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ),

@@ -350,95 +350,63 @@ class CreateAppUserReq {
   ]);
 }
 
-class CreatePatientReq {
-  CreatePatientReq({
-    required this.appUserId,
-    required this.nationalId,
-    required this.municipalityId,
-    this.inssId,
-    this.phoneNumber,
-    this.medicalNotes,
-    this.occupation,
-    this.neighborHood,
+class CreateBusinessReq {
+  CreateBusinessReq({
+    required this.userId,
+    required this.name,
+    this.businessType = 'Personal',
+    this.currencyCode = 'NIO',
   });
 
-  String appUserId;
-  String nationalId;
-  int municipalityId;
-  int? inssId;
-  String? phoneNumber;
-  String? medicalNotes;
-  String? occupation;
-  String? neighborHood;
+  String userId;
+  String name;
+  String businessType;
+  String currencyCode;
 
-  factory CreatePatientReq.fromJson(Map<String, dynamic> json) =>
-      CreatePatientReq(
-        appUserId: json["app_user_id"],
-        nationalId: json["national_id"],
-        municipalityId: json["municipality_id"],
-        inssId: json["inss_id"],
-        phoneNumber: json["phone_number"],
-        medicalNotes: json["medical_notes"],
-        occupation: json["occupation"],
-        neighborHood: json["neighborhood"],
+  factory CreateBusinessReq.fromJson(Map<String, dynamic> json) =>
+      CreateBusinessReq(
+        userId: json["user_id"],
+        name: json["name"],
+        businessType: json["business_type"] ?? 'Personal',
+        currencyCode: json["currency_code"] ?? 'NIO',
       );
 
   Map<String, dynamic> toJson() => {
-    "app_user_id": appUserId,
-    "national_id": nationalId,
-    "municipality_id": municipalityId,
-    "inss_id": inssId,
-    "phone_number": phoneNumber,
-    "medical_notes": medicalNotes,
-    "occupation": occupation,
-    "neighborhood": neighborHood,
+    "user_id": userId,
+    "name": name,
+    "business_type": businessType,
+    "currency_code": currencyCode,
   };
 
-  CreatePatientReq copyWith({
-    String? appUserId,
-    String? nationalId,
-    int? municipalityId,
-    int? inssId,
-    String? phoneNumber,
-    String? medicalNotes,
-    String? occupation,
-    String? neighborHood,
+  CreateBusinessReq copyWith({
+    String? userId,
+    String? name,
+    String? businessType,
+    String? currencyCode,
   }) {
-    return CreatePatientReq(
-      appUserId: appUserId ?? this.appUserId,
-      nationalId: nationalId ?? this.nationalId,
-      municipalityId: municipalityId ?? this.municipalityId,
-      inssId: inssId ?? this.inssId,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      medicalNotes: medicalNotes ?? this.medicalNotes,
-      occupation: occupation ?? this.occupation,
-      neighborHood: neighborHood ?? this.neighborHood,
+    return CreateBusinessReq(
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      businessType: businessType ?? this.businessType,
+      currencyCode: currencyCode ?? this.currencyCode,
     );
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PatientRes &&
-          other.appUserId == appUserId &&
-          other.nationalId == nationalId &&
-          other.municipalityId == municipalityId &&
-          other.inssId == inssId &&
-          other.phoneNumber == phoneNumber &&
-          other.medicalNotes == medicalNotes &&
-          other.occupation == occupation &&
-          other.neighborHood == neighborHood;
+      other is CreateBusinessReq &&
+          other.userId == userId &&
+          other.name == name &&
+          other.businessType == businessType &&
+          other.currencyCode == currencyCode;
 
   @override
   int get hashCode => Object.hashAll([
-    appUserId,
-    nationalId,
-    municipalityId,
-    inssId,
-    phoneNumber,
-    medicalNotes,
-    occupation,
-    neighborHood,
+    userId,
+    name,
+    businessType,
+    currencyCode,
   ]);
 }
 
@@ -649,101 +617,77 @@ class MunicipalityRes {
   int get hashCode => Object.hashAll([id, name, departmentId]);
 }
 
-class PatientRes {
-  PatientRes({
+class BusinessRes {
+  BusinessRes({
     required this.id,
-    required this.appUserId,
-    required this.nationalId,
-    required this.municipalityId,
-    this.inssId,
-    this.phoneNumber,
-    this.medicalNotes,
-    this.occupation,
-    this.neighborHood,
+    required this.userId,
+    required this.name,
+    required this.businessType,
+    required this.currencyCode,
+    required this.isDefault,
   });
 
   int id;
-  String appUserId;
-  String nationalId;
-  int municipalityId;
-  int? inssId;
-  String? phoneNumber;
-  String? medicalNotes;
-  String? occupation;
-  String? neighborHood;
+  String userId;
+  String name;
+  String businessType;
+  String currencyCode;
+  bool isDefault;
 
-  factory PatientRes.fromJson(Map<String, dynamic> json) => PatientRes(
+  factory BusinessRes.fromJson(Map<String, dynamic> json) => BusinessRes(
     id: json["id"],
-    appUserId: json["app_user_id"],
-    nationalId: json["national_id"],
-    municipalityId: json["municipality_id"],
-    inssId: json["inss_id"],
-    phoneNumber: json["phone_number"],
-    medicalNotes: json["medical_notes"],
-    occupation: json["occupation"],
-    neighborHood: json["neighborhood"],
+    userId: json["user_id"],
+    name: json["name"],
+    businessType: json["business_type"],
+    currencyCode: json["currency_code"],
+    isDefault: json["is_default"],
   );
 
   Map<String, dynamic> toJson() => {
     "id": id,
-    "app_user_id": appUserId,
-    "national_id": nationalId,
-    "municipality_id": municipalityId,
-    "inss_id": inssId,
-    "phone_number": phoneNumber,
-    "medical_notes": medicalNotes,
-    "occupation": occupation,
-    "neighborhood": neighborHood,
+    "user_id": userId,
+    "name": name,
+    "business_type": businessType,
+    "currency_code": currencyCode,
+    "is_default": isDefault,
   };
 
-  PatientRes copyWith({
+  BusinessRes copyWith({
     int? id,
-    String? appUserId,
-    String? nationalId,
-    int? municipalityId,
-    int? inssId,
-    String? phoneNumber,
-    String? medicalNotes,
-    String? occupation,
-    String? neighborHood,
+    String? userId,
+    String? name,
+    String? businessType,
+    String? currencyCode,
+    bool? isDefault,
   }) {
-    return PatientRes(
+    return BusinessRes(
       id: id ?? this.id,
-      appUserId: appUserId ?? this.appUserId,
-      nationalId: nationalId ?? this.nationalId,
-      municipalityId: municipalityId ?? this.municipalityId,
-      inssId: inssId ?? this.inssId,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      medicalNotes: medicalNotes ?? this.medicalNotes,
-      occupation: occupation ?? this.occupation,
-      neighborHood: neighborHood ?? this.neighborHood,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      businessType: businessType ?? this.businessType,
+      currencyCode: currencyCode ?? this.currencyCode,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PatientRes &&
+      other is BusinessRes &&
           other.id == id &&
-          other.appUserId == appUserId &&
-          other.nationalId == nationalId &&
-          other.municipalityId == municipalityId &&
-          other.inssId == inssId &&
-          other.phoneNumber == phoneNumber &&
-          other.medicalNotes == medicalNotes &&
-          other.occupation == occupation &&
-          other.neighborHood == neighborHood;
+          other.userId == userId &&
+          other.name == name &&
+          other.businessType == businessType &&
+          other.currencyCode == currencyCode &&
+          other.isDefault == isDefault;
 
   @override
   int get hashCode => Object.hashAll([
     id,
-    appUserId,
-    nationalId,
-    municipalityId,
-    inssId,
-    phoneNumber,
-    medicalNotes,
-    occupation,
-    neighborHood,
+    userId,
+    name,
+    businessType,
+    currencyCode,
+    isDefault,
   ]);
 }
