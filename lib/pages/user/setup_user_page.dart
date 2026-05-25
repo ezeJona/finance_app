@@ -15,8 +15,15 @@ import '../../ui/alert_dialogs.dart';
 class SetupUserPage extends HookConsumerWidget {
   const SetupUserPage({super.key});
 
+  // Constantes de estilo unificadas de la nueva línea gráfica
+  static const Color darkNavy = Color(0xFF1E2530);
+  static const Color emeraldGreen = Color(0xFF00A86B);
+  static const Color textGray = Color(0xFF4A4A4A);
+  static const Color lightGray = Color(0xFFE2E8F0);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 🎛️ LOGICA Y PROVIDERS ORIGINALES (Intactas)
     final authUser = ref.watch(authUserProvider);
     final municipalities = ref.watch(municipalitiesProvider);
 
@@ -24,22 +31,15 @@ class SetupUserPage extends HookConsumerWidget {
     final error = useState<String>("");
     final setupStep = useState<int>(0); // 0: setup app_user, 1: setup patient
 
-    final TextEditingController firstNameController =
-        useTextEditingController();
-    final TextEditingController secondNameController =
-        useTextEditingController();
-    final TextEditingController firstLastNameController =
-        useTextEditingController();
-    final TextEditingController secondLastNameController =
-        useTextEditingController();
-    final TextEditingController nationalIdController =
-        useTextEditingController();
+    final TextEditingController firstNameController = useTextEditingController();
+    final TextEditingController secondNameController = useTextEditingController();
+    final TextEditingController firstLastNameController = useTextEditingController();
+    final TextEditingController secondLastNameController = useTextEditingController();
+    final TextEditingController nationalIdController = useTextEditingController();
     final TextEditingController inssIdController = useTextEditingController();
-    final TextEditingController phoneNumberController =
-        useTextEditingController();
+    final TextEditingController phoneNumberController = useTextEditingController();
     final TextEditingController districtController = useTextEditingController();
-    final TextEditingController occupationController =
-        useTextEditingController();
+    final TextEditingController occupationController = useTextEditingController();
     final selectedMunicipality = useState<MunicipalityRes?>(null);
 
     final dateOfBirth = useState<DateTime?>(null);
@@ -61,9 +61,9 @@ class SetupUserPage extends HookConsumerWidget {
     }
 
     final showIncompleteUserInputsDialog = useCallback((
-      BuildContext context,
-      String infoText,
-    ) async {
+        BuildContext context,
+        String infoText,
+        ) async {
       await warningDialog(
         context: context,
         title: "Datos incompletos",
@@ -148,236 +148,355 @@ class SetupUserPage extends HookConsumerWidget {
     }, []);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('H O S P I R E D')),
-      body: Center(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  if (setupStep.value == 1) ...[
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => setupStep.value = 0,
+      backgroundColor: Colors.white, // Fondo limpio unificado
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: setupStep.value == 1
+            ? IconButton(
+          icon: const Icon(Icons.arrow_back, color: darkNavy),
+          onPressed: () => setupStep.value = 0,
+        )
+            : null,
+      ),
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(), // Cierre de teclado optimizado
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - MediaQuery.of(context).padding.bottom,
                     ),
-                  ],
-                  Text(
-                    setupStep.value == 0
-                        ? "Configurar Usuario"
-                        : "Datos del Paciente",
-                    style: HospiredTextStyle.title4,
-                  ),
-                  const Spacer(),
-                ],
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Text(
-                    authUser != null ? "Correo electrónico:" : "",
-                    style: HospiredTextStyle.title2,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(authUser?.email ?? ""),
-                  const Spacer(),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: ListView(
-                  children: [
-                    if (setupStep.value == 0) ...[
-                      Text("Nombres", style: HospiredTextStyle.title3),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: firstNameController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          hintText: "Juan",
-                          labelText: "Primer Nombre *",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: secondNameController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          hintText: "Carlos",
-                          labelText: "Segundo Nombre",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text("Apellidos", style: HospiredTextStyle.title3),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: firstLastNameController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          hintText: "Rodriguez",
-                          labelText: "Primer Apellido *",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: secondLastNameController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          hintText: "Cuaresma",
-                          labelText: "Segundo Apellido",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        "Fecha de nacimiento",
-                        style: HospiredTextStyle.title3,
-                      ),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: () => pickDateOfBirth(context),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: dateOfBirth.value != null
-                                ? "Fecha de nacimiento"
-                                : "",
-                            border: const OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            dateOfBirth.value != null
-                                ? "${dateOfBirth.value!.day}/${dateOfBirth.value!.month}/${dateOfBirth.value!.year}"
-                                : "Seleccionar",
-                            style: TextStyle(
-                              color: dateOfBirth.value != null
-                                  ? Colors.black
-                                  : Colors.grey[600],
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 1. INDICADOR DE PROGRESO SUPERIOR
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: setupStep.value == 0 ? 0.75 : 1.0, // Progreso: 75% info personal, 100% negocio
+                              minHeight: 4,
+                              backgroundColor: lightGray,
+                              valueColor: const AlwaysStoppedAnimation<Color>(emeraldGreen),
                             ),
                           ),
-                        ),
-                      ),
-                    ] else ...[
-                      Text(
-                        "Cédula y Seguro Social",
-                        style: HospiredTextStyle.title3,
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: nationalIdController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          labelText: "Cédula *",
-                          border: OutlineInputBorder(),
-                          hintText: "123-456789-0001A",
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: inssIdController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          labelText: "Número INSS",
-                          hintText: "12345678",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text("Dirección", style: HospiredTextStyle.title3),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<MunicipalityRes>(
-                        decoration: const InputDecoration(
-                          labelText: "Municipio",
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 16,
+                          const SizedBox(height: 32),
+
+                          // 2. TEXTOS DE ENCABEZADO DINÁMICOS
+                          Text(
+                            setupStep.value == 0
+                                ? "Cuéntanos sobre ti"
+                                : "Configura tu negocio y contacto",
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: darkNavy,
+                              letterSpacing: -0.5,
+                            ),
                           ),
-                        ),
-                        initialValue: selectedMunicipality.value,
-                        onChanged: (MunicipalityRes? municipality) {
-                          selectedMunicipality.value = municipality;
-                        },
-                        items:
-                            municipalities
-                                ?.map<DropdownMenuItem<MunicipalityRes>>((
-                                  MunicipalityRes municipality,
-                                ) {
-                                  return DropdownMenuItem<MunicipalityRes>(
-                                    value: municipality,
-                                    child: Text(municipality.name),
-                                  );
-                                })
-                                .toList() ??
-                            [],
+                          const SizedBox(height: 8),
+                          Text(
+                            setupStep.value == 0
+                                ? "Completa tus nombres y fecha de nacimiento para tu perfil oficial."
+                                : "Ingresa tus identificaciones y locación para habilitar los reportes.",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: textGray,
+                              height: 1.4,
+                            ),
+                          ),
+
+                          // Muestra de correo electrónico de cuenta activa de forma elegante
+                          if (authUser?.email != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              "Cuenta activa: ${authUser!.email}",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: textGray.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 32),
+
+                          // 3. MANEJO DE ERRORES VISUALES
+                          if (error.value.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                error.value,
+                                style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // 4. FLUJO DINÁMICO DE ENTRADAS DE TEXTO Y SELECTORES
+                          if (setupStep.value == 0) ...[
+                            _buildCustomTextField(
+                              controller: firstNameController,
+                              labelText: "Primer Nombre",
+                              hintText: "Juan",
+                              isRequired: true,
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: secondNameController,
+                              labelText: "Segundo Nombre",
+                              hintText: "Carlos",
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: firstLastNameController,
+                              labelText: "Primer Apellido",
+                              hintText: "Rodríguez",
+                              isRequired: true,
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: secondLastNameController,
+                              labelText: "Segundo Apellido",
+                              hintText: "Cuaresma",
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Selector de Fecha de Nacimiento Estilizado
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Fecha de nacimiento",
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkNavy),
+                                ),
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: creatingUser.value ? null : () => pickDateOfBirth(context),
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: InputDecorator(
+                                    decoration: InputDecoration(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(color: darkNavy, width: 1.5),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(color: darkNavy, width: 2),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          dateOfBirth.value != null
+                                              ? "${dateOfBirth.value!.day}/${dateOfBirth.value!.month}/${dateOfBirth.value!.year}"
+                                              : "Seleccionar fecha",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: dateOfBirth.value != null ? darkNavy : Colors.black26,
+                                            fontWeight: dateOfBirth.value != null ? FontWeight.normal : FontWeight.w400,
+                                          ),
+                                        ),
+                                        const Icon(Icons.calendar_today_outlined, size: 20, color: darkNavy),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
+                            _buildCustomTextField(
+                              controller: nationalIdController,
+                              labelText: "Cédula",
+                              hintText: "123-456789-0001A",
+                              isRequired: true,
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: inssIdController,
+                              labelText: "Número INSS",
+                              hintText: "12345678",
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Selector Dropdown Municipalidad Estilizado a la Línea Gráfica
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Municipio",
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkNavy),
+                                ),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<MunicipalityRes>(
+                                  style: const TextStyle(fontSize: 16, color: darkNavy),
+                                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: darkNavy),
+                                  decoration: InputDecoration(
+                                    hintText: "Selecciona tu municipio",
+                                    hintStyle: const TextStyle(color: Colors.black26),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: const BorderSide(color: darkNavy, width: 1.5),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: const BorderSide(color: darkNavy, width: 2),
+                                    ),
+                                  ),
+                                  initialValue: selectedMunicipality.value,
+                                  onChanged: creatingUser.value
+                                      ? null
+                                      : (MunicipalityRes? municipality) {
+                                    selectedMunicipality.value = municipality;
+                                  },
+                                  items: municipalities?.map<DropdownMenuItem<MunicipalityRes>>((
+                                      MunicipalityRes municipality,
+                                      ) {
+                                    return DropdownMenuItem<MunicipalityRes>(
+                                      value: municipality,
+                                      child: Text(municipality.name),
+                                    );
+                                  }).toList() ?? [],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: districtController,
+                              labelText: "Residencial, Barrio, Comarca o Distrito",
+                              hintText: "Bosques de Altamira",
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: occupationController,
+                              labelText: "Ocupación",
+                              hintText: "Fisioterapeuta",
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                            const SizedBox(height: 20),
+                            _buildCustomTextField(
+                              controller: phoneNumberController,
+                              labelText: "Número de teléfono",
+                              hintText: "8512 3456",
+                              readOnly: creatingUser.value,
+                              onChanged: (value) => error.value = "",
+                            ),
+                          ],
+
+                          const Spacer(), // Empuja el botón al fondo de forma fluida
+                          const SizedBox(height: 32),
+
+                          // 5. BOTÓN PRINCIPAL DE ACCIÓN OVALADO
+                          SizedBox(
+                            height: 56,
+                            child: FilledButton(
+                              onPressed: creatingUser.value ? null : () => continueButtonPressed(context),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: darkNavy,
+                                disabledBackgroundColor: darkNavy.withOpacity(0.5),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: creatingUser.value
+                                  ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                              )
+                                  : Text(
+                                setupStep.value == 0 ? "Continuar" : "Listo",
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: districtController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          labelText: "Residencial, Barrio, Comarca o Distrito",
-                          hintText: "Bosques de Altamira",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        "Ocupación y contacto",
-                        style: HospiredTextStyle.title3,
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: occupationController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          labelText: "Ocupación",
-                          hintText: "Fisioterapeuta",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: phoneNumberController,
-                        readOnly: creatingUser.value,
-                        onChanged: (value) => error.value = "",
-                        decoration: const InputDecoration(
-                          labelText: "Número de teléfono",
-                          hintText: "8512 3456",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: () => continueButtonPressed(context),
-                      child: Text(setupStep.value == 0 ? "Continuar" : "Listo"),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        error.value,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: HospiredColors.danger),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+
+  // Helper modular e inyectable de inputs alineado con Sign Up e imágenes de referencia
+  Widget _buildCustomTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    bool isRequired = false,
+    bool readOnly = false,
+    TextInputType keyboardType = TextInputType.text,
+    Function(String)? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            text: labelText,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkNavy),
+            children: [
+              if (isRequired) const TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          readOnly: readOnly,
+          keyboardType: keyboardType,
+          onChanged: onChanged,
+          style: const TextStyle(fontSize: 16, color: darkNavy),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: const TextStyle(color: Colors.black26),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: darkNavy, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: darkNavy, width: 2),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: lightGray, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

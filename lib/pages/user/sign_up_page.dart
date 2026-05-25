@@ -99,7 +99,7 @@ class SignUpPage extends HookConsumerWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(2),
                             child: LinearProgressIndicator(
-                              value: signUpSuccessful.value ? 1.0 : 0.35, // 100% si el registro fue exitoso
+                              value: signUpSuccessful.value ? 0.5 : 0.25, // Progreso: 25% registro, 50% confirmación
                               minHeight: 4,
                               backgroundColor: lightGray,
                               valueColor: const AlwaysStoppedAnimation<Color>(emeraldGreen),
