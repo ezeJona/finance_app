@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../providers/app_user.dart';
 import '../../providers/business.dart';
 import '../../providers/auth_user.dart';
 import '../../providers/businesses.dart';
+import '../../providers/transactions.dart';
 import '../../backend-api/api_service.dart';
 import '../../backend-api/dtos.dart';
 
@@ -25,6 +27,7 @@ class BalancePage extends HookConsumerWidget {
     final authUser = ref.watch(authUserProvider);
     final business = ref.watch(businessProvider);
     final businessesAsync = ref.watch(businessesProvider);
+    final transactionsAsync = ref.watch(transactionsProvider);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -79,20 +82,6 @@ class BalancePage extends HookConsumerWidget {
                 children: [
                   Text(authUser?.email ?? "sin-email@hospired.com"),
                   const SizedBox(height: 2),
-                  InkWell(
-                    onTap: () {
-                      // TODO: Navegar a la página de edición de perfil
-                      Navigator.pop(context);
-                    },
-                    child: const Text(
-                      "Editar Perfil",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -219,24 +208,28 @@ class BalancePage extends HookConsumerWidget {
               children: [
                 _buildHeader(context, appUser, business),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    children: [
-                      const SizedBox(height: 16),
-                      _buildDatePicker(),
-                      const SizedBox(height: 12),
-                      _buildMetricsCard(),
-                      const SizedBox(height: 16),
-                      _buildSearchBar(),
-                      const SizedBox(height: 16),
-                      _buildTransactionList(),
-                      const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
-                    ],
+                  child: transactionsAsync.when(
+                    data: (transactions) => ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildDatePicker(),
+                        const SizedBox(height: 12),
+                        _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
+                        const SizedBox(height: 16),
+                        _buildSearchBar(),
+                        const SizedBox(height: 16),
+                        _buildTransactionList(transactions, business?.currencyCode ?? 'NIO'),
+                        const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
+                      ],
+                    ),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(child: Text('Error al cargar transacciones: $err')),
                   ),
                 ),
               ],
             ),
-            _buildBottomActionButtons(),
+            _buildBottomActionButtons(context, ref, business),
           ],
         ),
       ),
@@ -359,7 +352,7 @@ class BalancePage extends HookConsumerWidget {
                 Icon(Icons.calendar_today, color: darkNavy.withOpacity(0.7)),
                 const SizedBox(width: 12),
                 const Text(
-                  '26 jul | 01 ago',
+                  'Hoy',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ],
@@ -368,15 +361,15 @@ class BalancePage extends HookConsumerWidget {
               children: [
                 const Icon(Icons.chevron_left, size: 28),
                 const SizedBox(width: 4),
-                Text('19 | 25', style: TextStyle(color: textGray.withOpacity(0.6), fontSize: 13)),
+                Text('Anterior', style: TextStyle(color: textGray.withOpacity(0.6), fontSize: 13)),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: darkNavy, borderRadius: BorderRadius.circular(6)),
-                  child: const Text('26 | 01', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                  child: const Text('Actual', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
-                Text('02 | 08', style: TextStyle(color: textGray.withOpacity(0.6), fontSize: 13)),
+                Text('Siguiente', style: TextStyle(color: textGray.withOpacity(0.6), fontSize: 13)),
                 const SizedBox(width: 4),
                 const Icon(Icons.chevron_right, size: 28),
               ],
@@ -388,7 +381,21 @@ class BalancePage extends HookConsumerWidget {
   }
 
   // 3. TARJETA DE MÉTRICAS (Resumen Financiero)
-  Widget _buildMetricsCard() {
+  Widget _buildMetricsCard(List<TransactionRes> transactions, String currency) {
+    double totalIncome = 0;
+    double totalExpense = 0;
+
+    for (var tx in transactions) {
+      if (tx.type == 'income') {
+        totalIncome += tx.amount;
+      } else {
+        totalExpense += tx.amount;
+      }
+    }
+
+    final double balance = totalIncome - totalExpense;
+    final currencyFormatter = NumberFormat.currency(symbol: currency == 'USD' ? '\$ ' : 'C\$ ', decimalDigits: 2);
+
     return Card(
       color: Colors.white,
       elevation: 1,
@@ -405,9 +412,13 @@ class BalancePage extends HookConsumerWidget {
                   children: [
                     Text('SALDO', style: TextStyle(color: textGray, fontWeight: FontWeight.w600, fontSize: 13)),
                     const SizedBox(height: 6),
-                    const Text(
-                      '\$ 608.000',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+                    Text(
+                      currencyFormatter.format(balance),
+                      style: TextStyle(
+                        fontSize: balance < 1000000 ? 20 : 16, 
+                        fontWeight: FontWeight.bold, 
+                        color: balance >= 0 ? Colors.black : expenseRed
+                      ),
                     ),
                   ],
                 ),
@@ -421,9 +432,9 @@ class BalancePage extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildMetricRow(Icons.money, 'Ingresos totales', '\$ 908.000', incomeGreen),
+                      _buildMetricRow(Icons.arrow_upward, 'Ingresos', currencyFormatter.format(totalIncome), incomeGreen),
                       const SizedBox(height: 12),
-                      _buildMetricRow(Icons.payment, 'Pagos totales', '\$ 300.000', expenseRed),
+                      _buildMetricRow(Icons.arrow_downward, 'Pagos', currencyFormatter.format(totalExpense), expenseRed),
                     ],
                   ),
                 ),
@@ -438,16 +449,16 @@ class BalancePage extends HookConsumerWidget {
   Widget _buildMetricRow(IconData icon, String label, String amount, Color color) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 24),
+        Icon(icon, color: color, size: 20),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
               Text(
                 amount,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
               ),
             ],
           ),
@@ -481,7 +492,7 @@ class BalancePage extends HookConsumerWidget {
         const SizedBox(width: 10),
         _buildCircleActionButton(Icons.swap_vert), // Representación de !¡!
         const SizedBox(width: 10),
-        _buildCircleActionButton(Icons.arrow_downward), // Descargar
+        _buildCircleActionButton(Icons.file_download_outlined), // Descargar
       ],
     );
   }
@@ -500,47 +511,81 @@ class BalancePage extends HookConsumerWidget {
   }
 
   // 5. LISTADO DE MOVIMIENTOS (Historial)
-  Widget _buildTransactionList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Encabezado de la sección del listado
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildTransactionList(List<TransactionRes> transactions, String currency) {
+    if (transactions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(
+          child: Column(
             children: [
-              Text('28 jul 2021', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black.withOpacity(0.8))),
-              Text('\$ 608.000', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black.withOpacity(0.8))),
+              Icon(Icons.receipt_long_outlined, size: 64, color: Colors.black12),
+              SizedBox(height: 16),
+              Text('No hay movimientos registrados', style: TextStyle(color: textGray)),
             ],
           ),
         ),
-        // Items de transacciones
-        _buildTransactionItem('Arriendo', 'Efectivo', '\$ 300.000', expenseRed, Icons.payment),
-        const SizedBox(height: 8),
-        _buildTransactionItem('Salario', 'Efectivo', '\$ 908.000', incomeGreen, Icons.money),
+      );
+    }
+
+    // Agrupar por fecha (simplificado para el ejemplo, asumiendo orden descendente de Supabase)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+          child: Text(
+            'Últimos movimientos', 
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black.withOpacity(0.8))
+          ),
+        ),
+        ...transactions.map((tx) => _buildTransactionItem(tx, currency)),
       ],
     );
   }
 
-  Widget _buildTransactionItem(String title, String method, String amount, Color amountColor, IconData icon) {
+  Widget _buildTransactionItem(TransactionRes tx, String currency) {
+    final bool isIncome = tx.type == 'income';
+    final Color color = isIncome ? incomeGreen : expenseRed;
+    final String prefix = isIncome ? '+' : '-';
+    final currencyFormatter = NumberFormat.currency(symbol: currency == 'USD' ? '\$ ' : 'C\$ ', decimalDigits: 2);
+
     return Card(
       color: Colors.white,
       elevation: 0.5,
+      margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Row(
           children: [
-            Icon(icon, color: amountColor, size: 28),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isIncome ? Icons.arrow_upward : Icons.arrow_downward, 
+                color: color, 
+                size: 20
+              ),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    tx.description ?? tx.category, 
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 2),
-                  Text(method, style: TextStyle(color: textGray, fontSize: 12)),
+                  Text(
+                    '${tx.paymentMethod} • ${DateFormat('dd MMM').format(tx.transactionDate)}', 
+                    style: TextStyle(color: textGray, fontSize: 12)
+                  ),
                 ],
               ),
             ),
@@ -548,13 +593,11 @@ class BalancePage extends HookConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  amount,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: amountColor),
+                  '$prefix ${currencyFormatter.format(tx.amount)}',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color),
                 ),
               ],
             ),
-            const SizedBox(width: 8),
-            Icon(Icons.more_vert, color: Colors.grey.shade400),
           ],
         ),
       ),
@@ -562,7 +605,7 @@ class BalancePage extends HookConsumerWidget {
   }
 
   // 6. BOTONES FLOTANTES INFERIORES
-  Widget _buildBottomActionButtons() {
+  Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, BusinessRes? business) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
@@ -570,11 +613,19 @@ class BalancePage extends HookConsumerWidget {
         child: Row(
           children: [
             Expanded(
-              child: _buildActionButton('NUEVO INGRESO', incomeGreen),
+              child: _buildActionButton(
+                'NUEVO INGRESO', 
+                incomeGreen, 
+                () => _showTransactionModal(context, ref, business, 'income')
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionButton('NUEVO PAGO', expenseRed),
+              child: _buildActionButton(
+                'NUEVO PAGO', 
+                expenseRed, 
+                () => _showTransactionModal(context, ref, business, 'expense')
+              ),
             ),
           ],
         ),
@@ -582,20 +633,40 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  Widget _buildActionButton(String text, Color color) {
+  Widget _buildActionButton(String text, Color color, VoidCallback onPressed) {
     return SizedBox(
       height: 54,
       child: FilledButton(
-        onPressed: () {},
+        onPressed: onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: color,
+          elevation: 4,
+          shadowColor: color.withOpacity(0.4),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
+    );
+  }
+
+  void _showTransactionModal(BuildContext context, WidgetRef ref, BusinessRes? business, String type) {
+    if (business == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona o crea un negocio primero'))
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (context) => _TransactionForm(business: business, ref: ref, type: type),
     );
   }
 
@@ -646,6 +717,185 @@ class BalancePage extends HookConsumerWidget {
         }
       }
     }
+  }
+}
+
+class _TransactionForm extends StatefulWidget {
+  final BusinessRes business;
+  final WidgetRef ref;
+  final String type; // 'income' or 'expense'
+
+  const _TransactionForm({required this.business, required this.ref, required this.type});
+
+  @override
+  State<_TransactionForm> createState() => _TransactionFormState();
+}
+
+class _TransactionFormState extends State<_TransactionForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _paymentMethod = 'Efectivo';
+  late String _category;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _category = widget.type == 'income' ? 'Salario' : 'General';
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+      final req = CreateTransactionReq(
+        businessId: widget.business.id,
+        type: widget.type,
+        amount: amount,
+        description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+        paymentMethod: _paymentMethod,
+        category: _category,
+      );
+
+      await ApiService.createTransaction(req);
+      widget.ref.invalidate(transactionsProvider);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.type == 'income' ? 'Ingreso registrado' : 'Pago registrado'),
+            backgroundColor: widget.type == 'income' ? BalancePage.incomeGreen : BalancePage.expenseRed,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: BalancePage.expenseRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color themeColor = widget.type == 'income' ? BalancePage.incomeGreen : BalancePage.expenseRed;
+    final String title = widget.type == 'income' ? 'NUEVO INGRESO' : 'NUEVO PAGO';
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: themeColor),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                labelText: 'Monto',
+                prefixText: widget.business.currencyCode == 'USD' ? '\$ ' : 'C\$ ',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+              validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Concepto / Descripción',
+                hintText: 'Ej. Pago de alquiler',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _category,
+                    decoration: InputDecoration(
+                      labelText: 'Categoría',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                    items: (widget.type == 'income' 
+                      ? ['Salario', 'Venta', 'Inversión', 'Otros'] 
+                      : ['Comida', 'Arriendo', 'Servicios', 'Transporte', 'General'])
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                    onChanged: (val) => setState(() => _category = val!),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _paymentMethod,
+                    decoration: InputDecoration(
+                      labelText: 'Método',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                    items: ['Efectivo', 'Tarjeta', 'Transferencia']
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (val) => setState(() => _paymentMethod = val!),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              height: 56,
+              child: FilledButton(
+                onPressed: _isLoading ? null : _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: themeColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
   }
 }
 

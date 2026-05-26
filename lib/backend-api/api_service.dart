@@ -127,6 +127,32 @@ class ApiService {
     }
   }
 
+  static Future<TransactionRes> createTransaction(CreateTransactionReq req) async {
+    try {
+      final Map<String, dynamic> response = await _supabase
+          .from('transactions')
+          .insert(req.toJson())
+          .select()
+          .single();
+      return TransactionRes.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to create transaction: $e');
+    }
+  }
+
+  static Future<List<TransactionRes>> getTransactionsByBusiness(int businessId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('transactions')
+          .select()
+          .eq('business_id', businessId)
+          .order('transaction_date', ascending: false);
+      return response.map((json) => TransactionRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch transactions: $e');
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(

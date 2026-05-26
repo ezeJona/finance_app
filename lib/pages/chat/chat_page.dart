@@ -74,7 +74,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(title: const Text("Chat Hospired")),
+      appBar: AppBar(title: const Text("Chat box")),
       body: Column(
         children: [
           Expanded(

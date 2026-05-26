@@ -365,3 +365,115 @@ class BusinessRes {
     isDefault,
   ]);
 }
+
+class TransactionRes {
+  TransactionRes({
+    required this.id,
+    required this.businessId,
+    required this.type,
+    required this.amount,
+    this.description,
+    required this.paymentMethod,
+    this.contactName,
+    required this.category,
+    required this.transactionDate,
+    required this.createdAt,
+  });
+
+  String id;
+  int businessId;
+  String type; // 'income' or 'expense'
+  double amount;
+  String? description;
+  String paymentMethod;
+  String? contactName;
+  String category;
+  DateTime transactionDate;
+  DateTime createdAt;
+
+  factory TransactionRes.fromJson(Map<String, dynamic> json) => TransactionRes(
+    id: json["id"],
+    businessId: json["business_id"],
+    type: json["type"],
+    amount: (json["amount"] as num).toDouble(),
+    description: json["description"],
+    paymentMethod: json["payment_method"],
+    contactName: json["contact_name"],
+    category: json["category"],
+    transactionDate: DateTime.parse(json["transaction_date"]),
+    createdAt: DateTime.parse(json["created_at"]),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "business_id": businessId,
+    "type": type,
+    "amount": amount,
+    "description": description,
+    "payment_method": paymentMethod,
+    "contact_name": contactName,
+    "category": category,
+    "transaction_date": transactionDate.toIso8601String(),
+    "created_at": createdAt.toIso8601String(),
+  };
+
+  TransactionRes copyWith({
+    String? id,
+    int? businessId,
+    String? type,
+    double? amount,
+    String? description,
+    String? paymentMethod,
+    String? contactName,
+    String? category,
+    DateTime? transactionDate,
+    DateTime? createdAt,
+  }) {
+    return TransactionRes(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      description: description ?? this.description,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      contactName: contactName ?? this.contactName,
+      category: category ?? this.category,
+      transactionDate: transactionDate ?? this.transactionDate,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+
+class CreateTransactionReq {
+  CreateTransactionReq({
+    required this.businessId,
+    required this.type,
+    required this.amount,
+    this.description,
+    this.paymentMethod = 'Efectivo',
+    this.category = 'General',
+    this.contactName,
+    DateTime? transactionDate,
+  }) : transactionDate = transactionDate ?? DateTime.now();
+
+  int businessId;
+  String type;
+  double amount;
+  String? description;
+  String paymentMethod;
+  String category;
+  String? contactName;
+  DateTime transactionDate;
+
+  Map<String, dynamic> toJson() => {
+    "business_id": businessId,
+    "type": type,
+    "amount": amount,
+    "description": description,
+    "payment_method": paymentMethod,
+    "category": category,
+    "contact_name": contactName,
+    "transaction_date": transactionDate.toIso8601String(),
+  };
+}
+
