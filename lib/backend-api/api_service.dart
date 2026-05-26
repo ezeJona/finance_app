@@ -153,6 +153,43 @@ class ApiService {
     }
   }
 
+  static Future<List<TransactionRes>> getFilteredTransactions({
+    required int businessId,
+    String? type,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+  }) async {
+    try {
+      PostgrestFilterBuilder<List<Map<String, dynamic>>> query = 
+          _supabase.from('transactions').select().eq('business_id', businessId);
+
+      if (type != null && type != 'all') {
+        query = query.eq('type', type);
+      }
+
+      if (startDate != null) {
+        query = query.gte('transaction_date', startDate.toIso8601String());
+      }
+
+      if (endDate != null) {
+        query = query.lte('transaction_date', endDate.toIso8601String());
+      }
+
+      PostgrestTransformBuilder<List<Map<String, dynamic>>> finalQuery = 
+          query.order('transaction_date', ascending: false);
+
+      if (limit != null) {
+        finalQuery = finalQuery.limit(limit);
+      }
+
+      final List<dynamic> response = await finalQuery;
+      return response.map((json) => TransactionRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch filtered transactions: $e');
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(

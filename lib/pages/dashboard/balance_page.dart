@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/app_user.dart';
@@ -6,6 +7,7 @@ import '../../providers/business.dart';
 import '../../providers/auth_user.dart';
 import '../../providers/businesses.dart';
 import '../../providers/transactions.dart';
+import '../../providers/transaction_filter.dart';
 import '../../backend-api/api_service.dart';
 import '../../backend-api/dtos.dart';
 
@@ -28,6 +30,7 @@ class BalancePage extends HookConsumerWidget {
     final business = ref.watch(businessProvider);
     final businessesAsync = ref.watch(businessesProvider);
     final transactionsAsync = ref.watch(transactionsProvider);
+    final filter = ref.watch(transactionFilterProvider);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -213,11 +216,9 @@ class BalancePage extends HookConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       children: [
                         const SizedBox(height: 16),
-                        _buildDatePicker(),
-                        const SizedBox(height: 12),
                         _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
                         const SizedBox(height: 16),
-                        _buildSearchBar(),
+                        _buildFilterBar(context, ref, filter),
                         const SizedBox(height: 16),
                         _buildTransactionList(transactions, business?.currencyCode ?? 'NIO'),
                         const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
@@ -295,7 +296,8 @@ class BalancePage extends HookConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
-          // Selector de Rango Temporal (Segmented Tabs)
+          // Selector de Rango Temporal (Comentado según requerimiento)
+          /*
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
@@ -311,6 +313,7 @@ class BalancePage extends HookConsumerWidget {
               ],
             ),
           ),
+          */
         ],
       ),
     );
@@ -331,50 +334,6 @@ class BalancePage extends HookConsumerWidget {
             color: isSelected ? Colors.white : darkNavy,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
-        ),
-      ),
-    );
-  }
-
-  // 2. SELECTOR DE FECHAS (Date/Week Picker)
-  Widget _buildDatePicker() {
-    return Card(
-      color: Colors.white,
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.calendar_today, color: darkNavy.withOpacity(0.7)),
-                const SizedBox(width: 12),
-                const Text(
-                  'Hoy',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                const Icon(Icons.chevron_left, size: 28),
-                const SizedBox(width: 4),
-                Text('Anterior', style: TextStyle(color: textGray.withOpacity(0.6), fontSize: 13)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: darkNavy, borderRadius: BorderRadius.circular(6)),
-                  child: const Text('Actual', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 8),
-                Text('Siguiente', style: TextStyle(color: textGray.withOpacity(0.6), fontSize: 13)),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, size: 28),
-              ],
-            )
-          ],
         ),
       ),
     );
@@ -467,46 +426,133 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  // 4. BARRA DE BÚSQUEDA Y ACCIONES CENTRALES
-  Widget _buildSearchBar() {
+  // 4. NUEVA BARRA DE FILTROS
+  Widget _buildFilterBar(BuildContext context, WidgetRef ref, TransactionFilterState filter) {
+    String timeLabel = "Mes actual";
+    if (filter.timeRange == 'current_month') {
+      timeLabel = DateFormat("MMM yyyy", 'es').format(filter.selectedMonthYear);
+    } else if (filter.timeRange == 'today') {
+      timeLabel = "Hoy";
+    } else if (filter.timeRange == 'yesterday') {
+      timeLabel = "Ayer";
+    } else if (filter.timeRange == 'last_5') {
+      timeLabel = "Últimos 5";
+    } else if (filter.timeRange == 'last_7') {
+      timeLabel = "Últimos 7 días";
+    } else if (filter.timeRange == 'last_30') {
+      timeLabel = "Últimos 30 días";
+    } else if (filter.timeRange == 'custom_range') {
+      timeLabel = "Personalizado";
+    }
+
+    String flowLabel = "Todos los movimientos";
+    if (filter.flowType == 'income') flowLabel = "Ingresos";
+    if (filter.flowType == 'expense') flowLabel = "Pagos";
+
     return Row(
       children: [
         Expanded(
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: const TextField(
-              decoration: InputDecoration(
-                hintText: 'Buscar concepto ...',
-                hintStyle: TextStyle(color: Colors.grey),
-                prefixIcon: Icon(Icons.search, color: Colors.grey),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+          flex: 2,
+          child: _buildActionChip(
+            context,
+            timeLabel,
+            Icons.calendar_month,
+            onTap: () => _showTimeRangePicker(context, ref, filter),
           ),
         ),
-        const SizedBox(width: 10),
-        _buildCircleActionButton(Icons.swap_vert), // Representación de !¡!
-        const SizedBox(width: 10),
-        _buildCircleActionButton(Icons.file_download_outlined), // Descargar
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
+          child: _buildActionChip(
+            context,
+            flowLabel,
+            Icons.filter_list,
+            onTap: () => _showFlowTypePicker(context, ref, filter),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildCircleActionButton(IconData icon) {
-    return Container(
-      height: 48,
-      width: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(color: darkNavy, width: 1.5),
+  Widget _buildActionChip(BuildContext context, String label, IconData icon, {required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: darkNavy),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: darkNavy),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.keyboard_arrow_down, size: 18, color: textGray),
+          ],
+        ),
       ),
-      child: Icon(icon, color: darkNavy, size: 22),
+    );
+  }
+
+  void _showTimeRangePicker(BuildContext context, WidgetRef ref, TransactionFilterState filter) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (context) => _TimeRangeModal(currentFilter: filter),
+    );
+  }
+
+  void _showFlowTypePicker(BuildContext context, WidgetRef ref, TransactionFilterState filter) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text("Filtrar por flujo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.all_inclusive, color: darkNavy),
+            title: const Text("Todos los movimientos"),
+            selected: filter.flowType == 'all',
+            onTap: () {
+              ref.read(transactionFilterProvider.notifier).setFlowType('all');
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.arrow_upward, color: incomeGreen),
+            title: const Text("Ingresos"),
+            selected: filter.flowType == 'income',
+            onTap: () {
+              ref.read(transactionFilterProvider.notifier).setFlowType('income');
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.arrow_downward, color: expenseRed),
+            title: const Text("Egresos / Pagos"),
+            selected: filter.flowType == 'expense',
+            onTap: () {
+              ref.read(transactionFilterProvider.notifier).setFlowType('expense');
+              Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -720,6 +766,138 @@ class BalancePage extends HookConsumerWidget {
   }
 }
 
+class _TimeRangeModal extends ConsumerWidget {
+  final TransactionFilterState currentFilter;
+  const _TimeRangeModal({required this.currentFilter});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final now = DateTime.now();
+    final months = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    Widget buildMonthChip(int year, int month) {
+      final date = DateTime(year, month);
+      final isSelected = currentFilter.timeRange == 'current_month' && 
+                        currentFilter.selectedMonthYear.year == year && 
+                        currentFilter.selectedMonthYear.month == month;
+      
+      return GestureDetector(
+        onTap: () {
+          ref.read(transactionFilterProvider.notifier).setSelectedMonth(date);
+          Navigator.pop(context);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? BalancePage.darkNavy : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isSelected ? BalancePage.darkNavy : Colors.grey.shade300),
+          ),
+          child: Text(
+            "${months[month-1].substring(0, 3)} $year",
+            style: TextStyle(
+              color: isSelected ? Colors.white : BalancePage.darkNavy,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text("Selecciona un periodo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          
+          // Fila de meses 2026
+          const Text("2026", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(now.month, (index) => buildMonthChip(2026, index + 1)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Fila de meses 2025
+          const Text("2025", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(12, (index) => buildMonthChip(2025, index + 1)),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          const Divider(),
+          
+          _rangeOption(ref, context, "Últimos 5 movimientos", Icons.notes, 'last_5'),
+          _rangeOption(ref, context, "Hoy", Icons.calendar_today, 'today'),
+          _rangeOption(ref, context, "Ayer", Icons.history, 'yesterday'),
+          _rangeOption(ref, context, "Últimos 7 días", Icons.calendar_month, 'last_7'),
+          _rangeOption(ref, context, "Últimos 30 días", Icons.date_range, 'last_30'),
+          
+          ListTile(
+            leading: const Icon(Icons.date_range_outlined, color: BalancePage.darkNavy),
+            title: const Text("Fecha desde - hasta"),
+            onTap: () async {
+              final range = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(2024),
+                lastDate: DateTime.now(),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: BalancePage.darkNavy,
+                        onPrimary: Colors.white,
+                        onSurface: BalancePage.darkNavy,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (range != null) {
+                ref.read(transactionFilterProvider.notifier).setCustomRange(range);
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCELAR", style: TextStyle(color: BalancePage.textGray, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rangeOption(WidgetRef ref, BuildContext context, String label, IconData icon, String range) {
+    final isSelected = currentFilter.timeRange == range;
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? BalancePage.primaryYellow : BalancePage.darkNavy),
+      title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      onTap: () {
+        ref.read(transactionFilterProvider.notifier).setTimeRange(range);
+        Navigator.pop(context);
+      },
+    );
+  }
+}
+
 class _TransactionForm extends StatefulWidget {
   final BusinessRes business;
   final WidgetRef ref;
@@ -735,6 +913,7 @@ class _TransactionFormState extends State<_TransactionForm> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
   String _paymentMethod = 'Efectivo';
   late String _category;
   bool _isLoading = false;
@@ -752,6 +931,19 @@ class _TransactionFormState extends State<_TransactionForm> {
     super.dispose();
   }
 
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now(),
+      locale: const Locale('es'),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -766,6 +958,7 @@ class _TransactionFormState extends State<_TransactionForm> {
         description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
         paymentMethod: _paymentMethod,
         category: _category,
+        transactionDate: _selectedDate,
       );
 
       await ApiService.createTransaction(req);
@@ -844,6 +1037,22 @@ class _TransactionFormState extends State<_TransactionForm> {
               ),
             ),
             const SizedBox(height: 16),
+            InkWell(
+              onTap: _pickDate,
+              borderRadius: BorderRadius.circular(15),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Fecha de la transacción',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+                ),
+                child: Text(
+                  DateFormat("d 'de' MMMM, y", 'es').format(_selectedDate),
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -877,6 +1086,7 @@ class _TransactionFormState extends State<_TransactionForm> {
                 ),
               ],
             ),
+
             const SizedBox(height: 32),
             SizedBox(
               height: 56,
