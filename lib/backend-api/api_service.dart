@@ -77,6 +77,18 @@ class ApiService {
     }
   }
 
+  static Future<List<BusinessRes>> getBusinesses(String userId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('businesses')
+          .select()
+          .eq('user_id', userId);
+      return response.map((json) => BusinessRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch businesses: $e');
+    }
+  }
+
   static Future<BusinessRes?> getBusiness(String userId) async {
     try {
       final Map<String, dynamic>? response = await _supabase
