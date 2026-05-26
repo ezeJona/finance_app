@@ -47,6 +47,28 @@ class ApiService {
     }
   }
 
+  static Future<BusinessRes> updateBusiness(int id, CreateBusinessReq req) async {
+    try {
+      final Map<String, dynamic> response = await _supabase
+          .from('businesses')
+          .update(req.toJson())
+          .eq('id', id)
+          .select()
+          .single();
+      return BusinessRes.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to update business: $e');
+    }
+  }
+
+  static Future<void> deleteBusiness(int id) async {
+    try {
+      await _supabase.from('businesses').delete().eq('id', id);
+    } catch (e) {
+      throw Exception('Failed to delete business: $e');
+    }
+  }
+
   static Future<AppUserRes?> getAppUser(String id) async {
     try {
       final Map<String, dynamic>? response = await _supabase

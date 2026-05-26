@@ -134,10 +134,10 @@ class BalancePage extends HookConsumerWidget {
                                       // TODO: Poner como predeterminado
                                       break;
                                     case 'edit':
-                                      // TODO: Editar negocio
+                                      _showAddBusinessModal(context, ref, authUser!.id, business: b);
                                       break;
                                     case 'delete':
-                                      // TODO: Borrar negocio
+                                      _confirmDeleteBusiness(context, ref, b);
                                       break;
                                   }
                                 },
@@ -599,23 +599,62 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  void _showAddBusinessModal(BuildContext context, WidgetRef ref, String userId) {
+  void _showAddBusinessModal(BuildContext context, WidgetRef ref, String userId, {BusinessRes? business}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
       ),
-      builder: (context) => _AddBusinessForm(userId: userId, ref: ref),
+      builder: (context) => _AddBusinessForm(userId: userId, ref: ref, business: business),
     );
+  }
+
+  Future<void> _confirmDeleteBusiness(BuildContext context, WidgetRef ref, BusinessRes business) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('¿Eliminar ${business.name}?'),
+        content: const Text('Esta acción no se puede deshacer. ¿Estás seguro de que deseas eliminar este negocio?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCELAR', style: TextStyle(color: textGray)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ELIMINAR', style: TextStyle(color: expenseRed, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.deleteBusiness(business.id);
+        ref.invalidate(businessesProvider);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Negocio eliminado correctamente'), backgroundColor: incomeGreen),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: expenseRed),
+          );
+        }
+      }
+    }
   }
 }
 
 class _AddBusinessForm extends StatefulWidget {
   final String userId;
   final WidgetRef ref;
+  final BusinessRes? business;
 
-  const _AddBusinessForm({required this.userId, required this.ref});
+  const _AddBusinessForm({required this.userId, required this.ref, this.business});
 
   @override
   State<_AddBusinessForm> createState() => _AddBusinessFormState();
@@ -623,10 +662,18 @@ class _AddBusinessForm extends StatefulWidget {
 
 class _AddBusinessFormState extends State<_AddBusinessForm> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  String _businessType = 'Personal';
-  String _currencyCode = 'NIO';
+  late final TextEditingController _nameController;
+  late String _businessType;
+  late String _currencyCode;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.business?.name);
+    _businessType = widget.business?.businessType ?? 'Personal';
+    _currencyCode = widget.business?.currencyCode ?? 'NIO';
+  }
 
   @override
   void dispose() {
@@ -640,14 +687,18 @@ class _AddBusinessFormState extends State<_AddBusinessForm> {
     setState(() => _isLoading = true);
 
     try {
-      await ApiService.createBusiness(
-        CreateBusinessReq(
-          userId: widget.userId,
-          name: _nameController.text,
-          businessType: _businessType,
-          currencyCode: _currencyCode,
-        ),
+      final req = CreateBusinessReq(
+        userId: widget.userId,
+        name: _nameController.text,
+        businessType: _businessType,
+        currencyCode: _currencyCode,
       );
+
+      if (widget.business == null) {
+        await ApiService.createBusiness(req);
+      } else {
+        await ApiService.updateBusiness(widget.business!.id, req);
+      }
 
       widget.ref.invalidate(businessesProvider);
 
@@ -655,8 +706,8 @@ class _AddBusinessFormState extends State<_AddBusinessForm> {
         Navigator.pop(context); // Cerrar Modal
         Navigator.pop(context); // Cerrar Drawer
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Negocio creado exitosamente'),
+          SnackBar(
+            content: Text(widget.business == null ? 'Negocio creado exitosamente' : 'Cambios guardados exitosamente'),
             backgroundColor: BalancePage.incomeGreen,
           ),
         );
@@ -665,7 +716,7 @@ class _AddBusinessFormState extends State<_AddBusinessForm> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al crear negocio: $e'),
+            content: Text('Error al procesar: $e'),
             backgroundColor: BalancePage.expenseRed,
           ),
         );
@@ -690,9 +741,9 @@ class _AddBusinessFormState extends State<_AddBusinessForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Añadir nuevo negocio',
-              style: TextStyle(
+            Text(
+              widget.business == null ? 'Añadir nuevo negocio' : 'Editar negocio',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: BalancePage.darkNavy,
@@ -747,9 +798,9 @@ class _AddBusinessFormState extends State<_AddBusinessForm> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'GUARDAR',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    : Text(
+                        widget.business == null ? 'GUARDAR' : 'GUARDAR CAMBIOS',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
               ),
             ),
