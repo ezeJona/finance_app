@@ -19,9 +19,33 @@ class BalancePage extends HookConsumerWidget {
     final appUser = ref.watch(appUserProvider);
     final business = ref.watch(businessProvider);
 
-    return Material(
-      color: backgroundColor,
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: primaryYellow),
+              child: Text(
+                'Mis Cuentas',
+                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person, color: darkNavy),
+              title: const Text('Cuenta Personal'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.business, color: darkNavy),
+              title: const Text('Emprendimiento'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+      body: SafeArea(
         top: false, // Permitir que el header amarillo suba hasta la barra de estado
         child: Stack(
           children: [
@@ -82,9 +106,11 @@ class BalancePage extends HookConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              CircleAvatar(
-                backgroundColor: Colors.white.withOpacity(0.3),
-                child: const Icon(Icons.attach_money, color: Colors.white),
+              Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu, color: Colors.white),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                ),
               ),
               Expanded(
                 child: Column(
