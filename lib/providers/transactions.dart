@@ -55,3 +55,9 @@ final transactionsProvider = FutureProvider.autoDispose<List<TransactionRes>>((r
     limit: limit,
   );
 });
+
+final historicTransactionsProvider = FutureProvider.autoDispose<List<TransactionRes>>((ref) async {
+  final business = ref.watch(businessProvider);
+  if (business == null) return [];
+  return await ApiService.getTransactionsByBusiness(business.id);
+});

@@ -113,17 +113,49 @@ class ApiService {
 
   static Future<BusinessRes?> getBusiness(String userId) async {
     try {
-      final Map<String, dynamic>? response = await _supabase
+      // 1. Intentar obtener el que el usuario marcó como predeterminado
+      final Map<String, dynamic>? defaultBus = await _supabase
           .from('businesses')
           .select()
           .eq('user_id', userId)
+          .eq('is_default', true)
           .maybeSingle();
-      if (response != null) {
-        return BusinessRes.fromJson(response);
+
+      if (defaultBus != null) {
+        return BusinessRes.fromJson(defaultBus);
+      }
+
+      // 2. Si no hay predeterminado, traer el primero que se encuentre
+      final List<dynamic> response = await _supabase
+          .from('businesses')
+          .select()
+          .eq('user_id', userId)
+          .limit(1);
+
+      if (response.isNotEmpty) {
+        return BusinessRes.fromJson(response.first);
       }
       return null;
     } catch (e) {
       throw Exception('Failed to fetch business: $e');
+    }
+  }
+
+  static Future<void> setBusinessAsDefault(int businessId, String userId) async {
+    try {
+      // 1. Quitar el predeterminado a todos los negocios del usuario
+      await _supabase
+          .from('businesses')
+          .update({'is_default': false})
+          .eq('user_id', userId);
+      
+      // 2. Establecer el nuevo predeterminado
+      await _supabase
+          .from('businesses')
+          .update({'is_default': true})
+          .eq('id', businessId);
+    } catch (e) {
+      throw Exception('Failed to set default business: $e');
     }
   }
 

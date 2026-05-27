@@ -30,6 +30,7 @@ class BalancePage extends HookConsumerWidget {
     final business = ref.watch(businessProvider);
     final businessesAsync = ref.watch(businessesProvider);
     final transactionsAsync = ref.watch(transactionsProvider);
+    final historicAsync = ref.watch(historicTransactionsProvider);
     final filter = ref.watch(transactionFilterProvider);
 
     return Scaffold(
@@ -112,7 +113,7 @@ class BalancePage extends HookConsumerWidget {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (b.isDefault)
+                              if (b.id == business?.id)
                                 const Icon(Icons.check_circle,
                                     color: incomeGreen, size: 20),
                               const SizedBox(width: 4),
@@ -120,11 +121,8 @@ class BalancePage extends HookConsumerWidget {
                                 icon: const Icon(Icons.more_vert, color: textGray),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                onSelected: (value) {
+                                onSelected: (value) async {
                                   switch (value) {
-                                    case 'default':
-                                      // TODO: Poner como predeterminado
-                                      break;
                                     case 'edit':
                                       _showAddBusinessModal(context, ref, authUser!.id, business: b);
                                       break;
@@ -134,17 +132,6 @@ class BalancePage extends HookConsumerWidget {
                                   }
                                 },
                                 itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'default',
-                                    enabled: !b.isDefault,
-                                    child: const Row(
-                                      children: [
-                                        Icon(Icons.star_border, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Poner como predeterminado'),
-                                      ],
-                                    ),
-                                  ),
                                   const PopupMenuItem(
                                     value: 'edit',
                                     child: Row(
@@ -174,8 +161,9 @@ class BalancePage extends HookConsumerWidget {
                             ],
                           ),
                           onTap: () {
+                            // Cambio puramente local: Actualiza el provider y Hive sin tocar la red
                             ref.read(businessProvider.notifier).set(b);
-                            Navigator.pop(context);
+                            if (context.mounted) Navigator.pop(context);
                           },
                         )),
                     const Divider(),
@@ -211,21 +199,32 @@ class BalancePage extends HookConsumerWidget {
               children: [
                 _buildHeader(context, appUser, business),
                 Expanded(
-                  child: transactionsAsync.when(
-                    data: (transactions) => ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      children: [
-                        const SizedBox(height: 16),
-                        _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
-                        const SizedBox(height: 16),
-                        _buildFilterBar(context, ref, filter),
-                        const SizedBox(height: 16),
-                        _buildTransactionList(transactions, business?.currencyCode ?? 'NIO'),
-                        const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
-                      ],
-                    ),
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Center(child: Text('Error al cargar transacciones: $err')),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                        child: historicAsync.when(
+                          data: (transactions) => _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
+                          loading: () => const Center(child: LinearProgressIndicator()),
+                          error: (err, stack) => Text('Error en saldos: $err', style: const TextStyle(color: expenseRed)),
+                        ),
+                      ),
+                      Expanded(
+                        child: transactionsAsync.when(
+                          data: (transactions) => ListView(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            children: [
+                              _buildFilterBar(context, ref, filter),
+                              const SizedBox(height: 16),
+                              _buildTransactionList(transactions, business?.currencyCode ?? 'NIO'),
+                              const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
+                            ],
+                          ),
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (err, stack) => Center(child: Text('Error al cargar transacciones: $err')),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -963,6 +962,7 @@ class _TransactionFormState extends State<_TransactionForm> {
 
       await ApiService.createTransaction(req);
       widget.ref.invalidate(transactionsProvider);
+      widget.ref.invalidate(historicTransactionsProvider);
 
       if (mounted) {
         Navigator.pop(context);
