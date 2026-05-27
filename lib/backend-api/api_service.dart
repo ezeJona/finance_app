@@ -172,6 +172,28 @@ class ApiService {
     }
   }
 
+  static Future<TransactionRes> updateTransaction(String id, CreateTransactionReq req) async {
+    try {
+      final Map<String, dynamic> response = await _supabase
+          .from('transactions')
+          .update(req.toJson())
+          .eq('id', id)
+          .select()
+          .single();
+      return TransactionRes.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to update transaction: $e');
+    }
+  }
+
+  static Future<void> deleteTransaction(String id) async {
+    try {
+      await _supabase.from('transactions').delete().eq('id', id);
+    } catch (e) {
+      throw Exception('Failed to delete transaction: $e');
+    }
+  }
+
   static Future<List<TransactionRes>> getTransactionsByBusiness(int businessId) async {
     try {
       final List<dynamic> response = await _supabase

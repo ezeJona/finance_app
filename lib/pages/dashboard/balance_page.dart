@@ -174,7 +174,6 @@ class BalancePage extends HookConsumerWidget {
                           style: TextStyle(
                               color: emeraldGreen, fontWeight: FontWeight.bold)),
                       onTap: () {
-                        // TODO: Implementar navegación al formulario de creación
                         if (authUser != null) {
                           _showAddBusinessModal(context, ref, authUser.id);
                         } else {
@@ -216,7 +215,7 @@ class BalancePage extends HookConsumerWidget {
                             children: [
                               _buildFilterBar(context, ref, filter),
                               const SizedBox(height: 16),
-                              _buildTransactionList(transactions, business?.currencyCode ?? 'NIO'),
+                              _buildTransactionList(context, ref, transactions, business?.currencyCode ?? 'NIO'),
                               const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
                             ],
                           ),
@@ -240,15 +239,16 @@ class BalancePage extends HookConsumerWidget {
   Widget _buildHeader(BuildContext context, dynamic appUser, dynamic business) {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     
-    String displayName = "Cargando...";
-    if (appUser != null) {
-      displayName = "${appUser.firstName} ${appUser.firstLastName}";
-      if (displayName.length > 20) {
-        displayName = "${displayName.substring(0, 17)}...";
-      }
+    // Título principal: Nombre del Negocio
+    String businessName = business?.name ?? "Cargando...";
+    
+    // Subtítulo: Tipo de cuenta y nombre del usuario para contexto
+    String subTitle = "";
+    if (business != null) {
+      subTitle = "${business.businessType} • ${appUser?.firstName ?? 'Usuario'}";
+    } else if (appUser != null) {
+      subTitle = "${appUser.firstName} ${appUser.firstLastName}";
     }
-
-    String displayAccount = business?.businessType ?? "Personal";
 
     return Container(
       padding: EdgeInsets.only(top: statusBarHeight + 16, left: 16, right: 16, bottom: 20),
@@ -261,7 +261,7 @@ class BalancePage extends HookConsumerWidget {
       ),
       child: Column(
         children: [
-          // Fila superior: Perfil, Nombre y Ayuda
+          // Fila superior: Perfil, Nombre del Negocio y Ayuda
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -275,15 +275,26 @@ class BalancePage extends HookConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      displayName,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      businessName,
+                      style: const TextStyle(
+                        fontSize: 19, 
+                        fontWeight: FontWeight.bold, 
+                        color: Colors.white,
+                        letterSpacing: 0.5
+                      ),
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      'Cuenta $displayAccount',
-                      style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8)),
+                      subTitle,
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500
+                      ),
                       textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -556,7 +567,7 @@ class BalancePage extends HookConsumerWidget {
   }
 
   // 5. LISTADO DE MOVIMIENTOS (Historial)
-  Widget _buildTransactionList(List<TransactionRes> transactions, String currency) {
+  Widget _buildTransactionList(BuildContext context, WidgetRef ref, List<TransactionRes> transactions, String currency) {
     if (transactions.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
@@ -583,12 +594,12 @@ class BalancePage extends HookConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black.withOpacity(0.8))
           ),
         ),
-        ...transactions.map((tx) => _buildTransactionItem(tx, currency)),
+        ...transactions.map((tx) => _buildTransactionItem(context, ref, tx, currency)),
       ],
     );
   }
 
-  Widget _buildTransactionItem(TransactionRes tx, String currency) {
+  Widget _buildTransactionItem(BuildContext context, WidgetRef ref, TransactionRes tx, String currency) {
     final bool isIncome = tx.type == 'income';
     final Color color = isIncome ? incomeGreen : expenseRed;
     final String prefix = isIncome ? '+' : '-';
@@ -640,6 +651,44 @@ class BalancePage extends HookConsumerWidget {
                 Text(
                   '$prefix ${currencyFormatter.format(tx.amount)}',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color),
+                ),
+              ],
+            ),
+            const SizedBox(width: 4),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: textGray, size: 20),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onSelected: (value) {
+                switch (value) {
+                  case 'edit':
+                    _showTransactionModal(context, ref, null, tx.type, transaction: tx);
+                    break;
+                  case 'delete':
+                    _confirmDeleteTransaction(context, ref, tx);
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 20),
+                      SizedBox(width: 8),
+                      Text('Editar movimiento'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: expenseRed, size: 20),
+                      SizedBox(width: 8),
+                      const Text('Eliminar', style: TextStyle(color: expenseRed)),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -697,8 +746,10 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  void _showTransactionModal(BuildContext context, WidgetRef ref, BusinessRes? business, String type) {
-    if (business == null) {
+  void _showTransactionModal(BuildContext context, WidgetRef ref, BusinessRes? business, String type, {TransactionRes? transaction}) {
+    final targetBusiness = business ?? ref.read(businessProvider);
+    
+    if (targetBusiness == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, selecciona o crea un negocio primero'))
       );
@@ -711,7 +762,7 @@ class BalancePage extends HookConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
       ),
-      builder: (context) => _TransactionForm(business: business, ref: ref, type: type),
+      builder: (context) => _TransactionForm(business: targetBusiness, ref: ref, type: type, transaction: transaction),
     );
   }
 
@@ -763,6 +814,45 @@ class BalancePage extends HookConsumerWidget {
       }
     }
   }
+
+  Future<void> _confirmDeleteTransaction(BuildContext context, WidgetRef ref, TransactionRes tx) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Eliminar movimiento?'),
+        content: const Text('Esta acción modificará tu saldo actual y no se puede deshacer. ¿Estás seguro?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCELAR', style: TextStyle(color: textGray)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ELIMINAR', style: TextStyle(color: expenseRed, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.deleteTransaction(tx.id);
+        ref.invalidate(transactionsProvider);
+        ref.invalidate(historicTransactionsProvider);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Movimiento eliminado'), backgroundColor: incomeGreen),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: expenseRed),
+          );
+        }
+      }
+    }
+  }
 }
 
 class _TimeRangeModal extends ConsumerWidget {
@@ -777,11 +867,10 @@ class _TimeRangeModal extends ConsumerWidget {
       "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     ];
 
-    Widget buildMonthChip(int year, int month) {
-      final date = DateTime(year, month);
+    Widget buildMonthChip(DateTime date) {
       final isSelected = currentFilter.timeRange == 'current_month' && 
-                        currentFilter.selectedMonthYear.year == year && 
-                        currentFilter.selectedMonthYear.month == month;
+                        currentFilter.selectedMonthYear.year == date.year && 
+                        currentFilter.selectedMonthYear.month == date.month;
       
       return GestureDetector(
         onTap: () {
@@ -797,7 +886,7 @@ class _TimeRangeModal extends ConsumerWidget {
             border: Border.all(color: isSelected ? BalancePage.darkNavy : Colors.grey.shade300),
           ),
           child: Text(
-            "${months[month-1].substring(0, 3)} $year",
+            "${months[date.month-1].substring(0, 3)} ${date.year}",
             style: TextStyle(
               color: isSelected ? Colors.white : BalancePage.darkNavy,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -807,79 +896,90 @@ class _TimeRangeModal extends ConsumerWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text("Selecciona un periodo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          
-          // Fila de meses 2026
-          const Text("2026", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: List.generate(now.month, (index) => buildMonthChip(2026, index + 1)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Fila de meses 2025
-          const Text("2025", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: List.generate(12, (index) => buildMonthChip(2025, index + 1)),
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          const Divider(),
-          
-          _rangeOption(ref, context, "Últimos 5 movimientos", Icons.notes, 'last_5'),
-          _rangeOption(ref, context, "Hoy", Icons.calendar_today, 'today'),
-          _rangeOption(ref, context, "Ayer", Icons.history, 'yesterday'),
-          _rangeOption(ref, context, "Últimos 7 días", Icons.calendar_month, 'last_7'),
-          _rangeOption(ref, context, "Últimos 30 días", Icons.date_range, 'last_30'),
-          
-          ListTile(
-            leading: const Icon(Icons.date_range_outlined, color: BalancePage.darkNavy),
-            title: const Text("Fecha desde - hasta"),
-            onTap: () async {
-              final range = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(2024),
-                lastDate: DateTime.now(),
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.light(
-                        primary: BalancePage.darkNavy,
-                        onPrimary: Colors.white,
-                        onSurface: BalancePage.darkNavy,
-                      ),
-                    ),
-                    child: child!,
+    // Lógica de generación: Mes actual primero, luego anteriores en orden inverso.
+    final List<DateTime> currentYearMonths = List.generate(now.month, (i) => DateTime(now.year, now.month - i));
+    final List<DateTime> lastYearMonths = List.generate(12, (i) => DateTime(now.year - 1, 12 - i));
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text("Selecciona un periodo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+
+              // Fila de meses Año Actual
+              Text("${now.year}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: currentYearMonths.map(buildMonthChip).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Fila de meses Año Anterior
+              Text("${now.year - 1}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: lastYearMonths.map(buildMonthChip).toList(),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              const Divider(),
+              
+              _rangeOption(ref, context, "Últimos 5 movimientos", Icons.notes, 'last_5'),
+              _rangeOption(ref, context, "Hoy", Icons.calendar_today, 'today'),
+              _rangeOption(ref, context, "Ayer", Icons.history, 'yesterday'),
+              _rangeOption(ref, context, "Últimos 7 días", Icons.calendar_month, 'last_7'),
+              _rangeOption(ref, context, "Últimos 30 días", Icons.date_range, 'last_30'),
+              
+              ListTile(
+                leading: const Icon(Icons.date_range_outlined, color: BalancePage.darkNavy),
+                title: const Text("Fecha desde - hasta"),
+                onTap: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2024),
+                    lastDate: DateTime.now(),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: BalancePage.darkNavy,
+                            onPrimary: Colors.white,
+                            onSurface: BalancePage.darkNavy,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
+                  if (range != null) {
+                    ref.read(transactionFilterProvider.notifier).setCustomRange(range);
+                    if (context.mounted) Navigator.pop(context);
+                  }
                 },
-              );
-              if (range != null) {
-                ref.read(transactionFilterProvider.notifier).setCustomRange(range);
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
+              ),
+
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("CANCELAR", style: TextStyle(color: BalancePage.textGray, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
-          
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("CANCELAR", style: TextStyle(color: BalancePage.textGray, fontWeight: FontWeight.bold)),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -901,8 +1001,9 @@ class _TransactionForm extends StatefulWidget {
   final BusinessRes business;
   final WidgetRef ref;
   final String type; // 'income' or 'expense'
+  final TransactionRes? transaction;
 
-  const _TransactionForm({required this.business, required this.ref, required this.type});
+  const _TransactionForm({required this.business, required this.ref, required this.type, this.transaction});
 
   @override
   State<_TransactionForm> createState() => _TransactionFormState();
@@ -910,17 +1011,25 @@ class _TransactionForm extends StatefulWidget {
 
 class _TransactionFormState extends State<_TransactionForm> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
-  String _paymentMethod = 'Efectivo';
+  late final TextEditingController _amountController;
+  late final TextEditingController _descriptionController;
+  late DateTime _selectedDate;
+  late String _paymentMethod;
   late String _category;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _category = widget.type == 'income' ? 'Salario' : 'General';
+    final tx = widget.transaction;
+    // Precargamos los datos si estamos editando
+    _amountController = TextEditingController(
+      text: tx != null ? tx.amount.toString().replaceAll('.0', '') : ''
+    );
+    _descriptionController = TextEditingController(text: tx?.description ?? '');
+    _selectedDate = tx?.transactionDate ?? DateTime.now();
+    _paymentMethod = tx?.paymentMethod ?? 'Efectivo';
+    _category = tx?.category ?? (widget.type == 'income' ? 'Salario' : 'General');
   }
 
   @override
@@ -934,8 +1043,8 @@ class _TransactionFormState extends State<_TransactionForm> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('es'),
     );
     if (picked != null && picked != _selectedDate) {
@@ -960,7 +1069,12 @@ class _TransactionFormState extends State<_TransactionForm> {
         transactionDate: _selectedDate,
       );
 
-      await ApiService.createTransaction(req);
+      if (widget.transaction == null) {
+        await ApiService.createTransaction(req);
+      } else {
+        await ApiService.updateTransaction(widget.transaction!.id, req);
+      }
+
       widget.ref.invalidate(transactionsProvider);
       widget.ref.invalidate(historicTransactionsProvider);
 
@@ -968,7 +1082,9 @@ class _TransactionFormState extends State<_TransactionForm> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.type == 'income' ? 'Ingreso registrado' : 'Pago registrado'),
+            content: Text(widget.transaction == null 
+              ? (widget.type == 'income' ? 'Ingreso registrado' : 'Pago registrado')
+              : 'Cambios guardados correctamente'),
             backgroundColor: widget.type == 'income' ? BalancePage.incomeGreen : BalancePage.expenseRed,
           ),
         );
@@ -987,7 +1103,9 @@ class _TransactionFormState extends State<_TransactionForm> {
   @override
   Widget build(BuildContext context) {
     final Color themeColor = widget.type == 'income' ? BalancePage.incomeGreen : BalancePage.expenseRed;
-    final String title = widget.type == 'income' ? 'NUEVO INGRESO' : 'NUEVO PAGO';
+    final String title = widget.transaction == null 
+      ? (widget.type == 'income' ? 'NUEVO INGRESO' : 'NUEVO PAGO')
+      : 'EDITAR MOVIMIENTO';
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1098,7 +1216,10 @@ class _TransactionFormState extends State<_TransactionForm> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    : Text(
+                        widget.transaction == null ? 'GUARDAR' : 'GUARDAR CAMBIOS',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
               ),
             ),
             const SizedBox(height: 24),
