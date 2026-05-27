@@ -1116,114 +1116,116 @@ class _TransactionFormState extends State<_TransactionForm> {
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: themeColor),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextFormField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                labelText: 'Monto',
-                prefixText: widget.business.currencyCode == 'USD' ? '\$ ' : 'C\$ ',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-              ),
-              validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Concepto / Descripción',
-                hintText: 'Ej. Pago de alquiler',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            InkWell(
-              onTap: _pickDate,
-              borderRadius: BorderRadius.circular(15),
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Fecha de la transacción',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  DateFormat("d 'de' MMMM, y", 'es').format(_selectedDate),
-                  style: const TextStyle(fontSize: 16),
+                  title,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: themeColor),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _category,
-                    decoration: InputDecoration(
-                      labelText: 'Categoría',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                    ),
-                    items: (widget.type == 'income' 
-                      ? ['Salario', 'Venta', 'Inversión', 'Otros'] 
-                      : ['Comida', 'Arriendo', 'Servicios', 'Transporte', 'General'])
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                    onChanged: (val) => setState(() => _category = val!),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  labelText: 'Monto',
+                  prefixText: widget.business.currencyCode == 'USD' ? '\$ ' : 'C\$ ',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Concepto / Descripción',
+                  hintText: 'Ej. Pago de alquiler',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _pickDate,
+                borderRadius: BorderRadius.circular(15),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Fecha de la transacción',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                    prefixIcon: const Icon(Icons.calendar_today_outlined),
+                  ),
+                  child: Text(
+                    DateFormat("d 'de' MMMM, y", 'es').format(_selectedDate),
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _paymentMethod,
-                    decoration: InputDecoration(
-                      labelText: 'Método',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                    ),
-                    items: ['Efectivo', 'Tarjeta', 'Transferencia']
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _category,
+                      decoration: InputDecoration(
+                        labelText: 'Categoría',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                      items: (widget.type == 'income' 
+                        ? ['Salario', 'Venta', 'Inversión', 'Otros'] 
+                        : ['Comida', 'Arriendo', 'Servicios', 'Transporte', 'General'])
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
-                    onChanged: (val) => setState(() => _paymentMethod = val!),
+                      onChanged: (val) => setState(() => _category = val!),
+                    ),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-            SizedBox(
-              height: 56,
-              child: FilledButton(
-                onPressed: _isLoading ? null : _submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: themeColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        widget.transaction == null ? 'GUARDAR' : 'GUARDAR CAMBIOS',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _paymentMethod,
+                      decoration: InputDecoration(
+                        labelText: 'Método',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                       ),
+                      items: ['Efectivo', 'Tarjeta', 'Transferencia']
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
+                      onChanged: (val) => setState(() => _paymentMethod = val!),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+
+              const SizedBox(height: 32),
+              SizedBox(
+                height: 56,
+                child: FilledButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: themeColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          widget.transaction == null ? 'GUARDAR' : 'GUARDAR CAMBIOS',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

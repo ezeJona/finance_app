@@ -57,9 +57,9 @@ class SideNavBar extends StatelessWidget {
           ),
           NavigationRailDestination(
             padding: EdgeInsets.symmetric(vertical: 12),
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: Text('Historial'),
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: Text('Deudas'),
           ),
           NavigationRailDestination(
             padding: EdgeInsets.symmetric(vertical: 12),

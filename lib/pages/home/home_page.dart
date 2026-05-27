@@ -9,6 +9,7 @@ import '../../providers/app_user.dart';
 import '../../providers/business.dart';
 import '../../text_styles.dart';
 import '../dashboard/balance_page.dart';
+import '../debts/debts_page.dart';
 import '../profile/profile_page.dart';
 import '../chat/chat_page.dart';
 import 'bottom_nav_bar.dart';
@@ -117,12 +118,14 @@ class HomePage extends HookConsumerWidget {
       switch (index) {
         case 0:
           return const BalancePage();
+        case 1:
+          return const DebtsPage();
         case 3:
           return const ChatPage(); // Asistente IA!
         case 4:
           return const ProfilePage();
         default:
-        // Pantalla de transición para los índices 1 y 2 (Historial y Reportes)
+        // Pantalla de transición para el índice 2 (Reportes)
           return const Scaffold(
             body: Center(
               child: Text(

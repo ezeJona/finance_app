@@ -52,9 +52,9 @@ class BottomNavBar extends StatelessWidget {
                 index: 0,
               ),
               _buildBottomItem(
-                icon: const Icon(Icons.receipt_long_outlined),
-                activeIcon: const Icon(Icons.receipt_long),
-                label: 'Historial',
+                icon: const Icon(Icons.account_balance_wallet_outlined),
+                activeIcon: const Icon(Icons.account_balance_wallet),
+                label: 'Deudas',
                 index: 1,
               ),
               _buildBottomItem(
