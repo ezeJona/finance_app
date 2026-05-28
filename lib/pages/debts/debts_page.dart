@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../providers/app_user.dart';
 import '../../providers/business.dart';
+import '../../providers/debts.dart';
 import '../../backend-api/dtos.dart';
 
 class DebtsPage extends HookConsumerWidget {
@@ -19,6 +21,8 @@ class DebtsPage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appUser = ref.watch(appUserProvider);
     final business = ref.watch(businessProvider);
+    final debtsAsync = ref.watch(debtsProvider);
+    final summary = ref.watch(debtsSummaryProvider);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -32,14 +36,20 @@ class DebtsPage extends HookConsumerWidget {
                 _buildHeader(context, appUser, business),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                  child: _buildDebtsSummaryCard(business?.currencyCode ?? 'NIO'),
+                  child: _buildDebtsSummaryCard(business?.currencyCode ?? 'NIO', summary),
                 ),
                 Expanded(
-                  child: _buildEmptyState(),
+                  child: debtsAsync.when(
+                    data: (debts) => debts.isEmpty
+                        ? _buildEmptyState()
+                        : _buildDebtsList(context, ref, debts, business?.currencyCode ?? 'NIO'),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => Center(child: Text('Error: $e')),
+                  ),
                 ),
               ],
             ),
-            _buildBottomActionButtons(),
+            _buildBottomActionButtons(context, ref, business?.id),
           ],
         ),
       ),
@@ -119,8 +129,9 @@ class DebtsPage extends HookConsumerWidget {
   }
 
   // 2. Tarjeta de Resumen de Deudas (Métricas)
-  Widget _buildDebtsSummaryCard(String currency) {
+  Widget _buildDebtsSummaryCard(String currency, ({double toCollect, double toPay, int debtors, int creditors}) summary) {
     final String symbol = currency == 'USD' ? '\$' : 'C\$';
+    final formatter = NumberFormat.compactCurrency(symbol: symbol, decimalDigits: 0);
 
     return Card(
       color: Colors.white,
@@ -155,12 +166,12 @@ class DebtsPage extends HookConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '$symbol 0',
+                      formatter.format(summary.toCollect),
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
                     ),
-                    const Text(
-                      '0 deudores',
-                      style: TextStyle(fontSize: 12, color: textGray),
+                    Text(
+                      '${summary.debtors} deudores',
+                      style: const TextStyle(fontSize: 12, color: textGray),
                     ),
                   ],
                 ),
@@ -190,12 +201,12 @@ class DebtsPage extends HookConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '$symbol 0',
+                      formatter.format(summary.toPay),
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
                     ),
-                    const Text(
-                      '0 acreedores',
-                      style: TextStyle(fontSize: 12, color: textGray),
+                    Text(
+                      '${summary.creditors} acreedores',
+                      style: const TextStyle(fontSize: 12, color: textGray),
                     ),
                   ],
                 ),
@@ -237,7 +248,7 @@ class DebtsPage extends HookConsumerWidget {
   }
 
   // 4. Botones de Acción Inferiores
-  Widget _buildBottomActionButtons() {
+  Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, int? businessId) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
@@ -245,11 +256,11 @@ class DebtsPage extends HookConsumerWidget {
         child: Row(
           children: [
             Expanded(
-              child: _buildActionButton('NUEVO INGRESO', incomeGreen),
+              child: _buildActionButton('POR COBRAR', incomeGreen, () => _showAddDebtDialog(context, ref, businessId, 'to_collect')),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionButton('NUEVO PAGO', expenseRed),
+              child: _buildActionButton('POR PAGAR', expenseRed, () => _showAddDebtDialog(context, ref, businessId, 'to_pay')),
             ),
           ],
         ),
@@ -257,11 +268,11 @@ class DebtsPage extends HookConsumerWidget {
     );
   }
 
-  Widget _buildActionButton(String text, Color color) {
+  Widget _buildActionButton(String text, Color color, VoidCallback onPressed) {
     return SizedBox(
       height: 54,
       child: FilledButton(
-        onPressed: () {}, // Estático por ahora
+        onPressed: onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: color,
           elevation: 4,
@@ -272,6 +283,170 @@ class DebtsPage extends HookConsumerWidget {
           text,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDebtsList(BuildContext context, WidgetRef ref, List<DebtRes> debts, String currency) {
+    final String symbol = currency == 'USD' ? '\$' : 'C\$';
+    final formatter = NumberFormat.currency(symbol: symbol, decimalDigits: 2);
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+      itemCount: debts.length,
+      itemBuilder: (context, index) {
+        final debt = debts[index];
+        final bool isToCollect = debt.type == 'to_collect';
+        final Color statusColor = debt.status == 'paid' ? incomeGreen : (isToCollect ? incomeGreen : expenseRed);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: statusColor.withOpacity(0.1),
+              child: Icon(
+                isToCollect ? Icons.arrow_downward : Icons.arrow_upward,
+                color: statusColor,
+              ),
+            ),
+            title: Text(
+              debt.contactName,
+              style: const TextStyle(fontWeight: FontWeight.bold, color: darkNavy),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (debt.description != null && debt.description!.isNotEmpty)
+                  Text(debt.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  debt.status == 'paid' ? 'Pagado' : 'Pendiente',
+                  style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatter.format(debt.remainingAmount),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: debt.status == 'paid' ? textGray : Colors.black,
+                    decoration: debt.status == 'paid' ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (debt.status == 'pending')
+                  const Text('Toca para pagar', style: TextStyle(fontSize: 10, color: textGray)),
+              ],
+            ),
+            onTap: debt.status == 'pending' ? () => _showAddPaymentDialog(context, ref, debt, currency) : null,
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddDebtDialog(BuildContext context, WidgetRef ref, int? businessId, String type) {
+    if (businessId == null) return;
+    
+    final nameController = TextEditingController();
+    final amountController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(type == 'to_collect' ? 'Nueva Cuenta por Cobrar' : 'Nueva Cuenta por Pagar'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre del contacto')),
+            TextField(controller: amountController, decoration: const InputDecoration(labelText: 'Monto total'), keyboardType: TextInputType.number),
+            TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Descripción (Opcional)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty || amountController.text.isEmpty) return;
+              final amount = double.tryParse(amountController.text);
+              if (amount == null) return;
+
+              final req = CreateDebtReq(
+                businessId: businessId,
+                type: type,
+                contactName: nameController.text,
+                totalAmount: amount,
+                description: descriptionController.text,
+              );
+
+              try {
+                await ref.read(debtsProvider.notifier).addDebt(req);
+                if (context.mounted) Navigator.pop(context);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPaymentDialog(BuildContext context, WidgetRef ref, DebtRes debt, String currency) {
+    final amountController = TextEditingController(text: debt.remainingAmount.toString());
+    final String symbol = currency == 'USD' ? '\$' : 'C\$';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Registrar Pago/Abono'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Deuda con: ${debt.contactName}'),
+            const SizedBox(height: 8),
+            Text('Saldo pendiente: $symbol ${debt.remainingAmount}'),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(labelText: 'Monto a pagar'),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () async {
+              final amount = double.tryParse(amountController.text);
+              if (amount == null || amount <= 0) return;
+
+              final req = CreateDebtPaymentReq(
+                debtId: debt.id,
+                amount: amount,
+              );
+
+              try {
+                await ref.read(debtsProvider.notifier).addPayment(req);
+                if (context.mounted) Navigator.pop(context);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
+                }
+              }
+            },
+            child: const Text('Pagar'),
+          ),
+        ],
       ),
     );
   }

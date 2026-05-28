@@ -444,6 +444,143 @@ class TransactionRes {
   }
 }
 
+class DebtRes {
+  DebtRes({
+    required this.id,
+    required this.businessId,
+    required this.type,
+    required this.contactName,
+    required this.totalAmount,
+    required this.remainingAmount,
+    required this.status,
+    this.dueDate,
+    this.description,
+    required this.createdAt,
+  });
+
+  String id;
+  int businessId;
+  String type; // 'to_collect' or 'to_pay'
+  String contactName;
+  double totalAmount;
+  double remainingAmount;
+  String status; // 'pending' or 'paid'
+  DateTime? dueDate;
+  String? description;
+  DateTime createdAt;
+
+  factory DebtRes.fromJson(Map<String, dynamic> json) => DebtRes(
+        id: json["id"],
+        businessId: json["business_id"],
+        type: json["type"],
+        contactName: json["contact_name"],
+        totalAmount: (json["total_amount"] as num).toDouble(),
+        remainingAmount: (json["remaining_amount"] as num).toDouble(),
+        status: json["status"],
+        dueDate: json["due_date"] == null ? null : DateTime.parse(json["due_date"]),
+        description: json["description"],
+        createdAt: DateTime.parse(json["created_at"]),
+      );
+
+  Map<String, dynamic> toJson() => {
+        "id": id,
+        "business_id": businessId,
+        "type": type,
+        "contact_name": contactName,
+        "total_amount": totalAmount,
+        "remaining_amount": remainingAmount,
+        "status": status,
+        "due_date": dueDate?.toIso8601String(),
+        "description": description,
+        "created_at": createdAt.toIso8601String(),
+      };
+}
+
+class DebtPaymentRes {
+  DebtPaymentRes({
+    required this.id,
+    required this.debtId,
+    required this.amount,
+    required this.paymentMethod,
+    required this.paymentDate,
+    required this.createdAt,
+  });
+
+  String id;
+  String debtId;
+  double amount;
+  String paymentMethod;
+  DateTime paymentDate;
+  DateTime createdAt;
+
+  factory DebtPaymentRes.fromJson(Map<String, dynamic> json) => DebtPaymentRes(
+        id: json["id"],
+        debtId: json["debt_id"],
+        amount: (json["amount"] as num).toDouble(),
+        paymentMethod: json["payment_method"],
+        paymentDate: DateTime.parse(json["payment_date"]),
+        createdAt: DateTime.parse(json["created_at"]),
+      );
+
+  Map<String, dynamic> toJson() => {
+        "id": id,
+        "debt_id": debtId,
+        "amount": amount,
+        "payment_method": paymentMethod,
+        "payment_date": paymentDate.toIso8601String(),
+        "created_at": createdAt.toIso8601String(),
+      };
+}
+
+class CreateDebtReq {
+  CreateDebtReq({
+    required this.businessId,
+    required this.type,
+    required this.contactName,
+    required this.totalAmount,
+    this.dueDate,
+    this.description,
+  });
+
+  int businessId;
+  String type;
+  String contactName;
+  double totalAmount;
+  DateTime? dueDate;
+  String? description;
+
+  Map<String, dynamic> toJson() => {
+        "business_id": businessId,
+        "type": type,
+        "contact_name": contactName,
+        "total_amount": totalAmount,
+        "remaining_amount": totalAmount,
+        "due_date": dueDate?.toIso8601String(),
+        "description": description,
+      };
+}
+
+class CreateDebtPaymentReq {
+  CreateDebtPaymentReq({
+    required this.debtId,
+    required this.amount,
+    this.paymentMethod = 'Efectivo',
+    DateTime? paymentDate,
+  }) : paymentDate = paymentDate ?? DateTime.now();
+
+  String debtId;
+  double amount;
+  String paymentMethod;
+  DateTime paymentDate;
+
+  Map<String, dynamic> toJson() => {
+        "debt_id": debtId,
+        "amount": amount,
+        "payment_method": paymentMethod,
+        "payment_date": paymentDate.toIso8601String(),
+      };
+}
+
 class CreateTransactionReq {
   CreateTransactionReq({
     required this.businessId,

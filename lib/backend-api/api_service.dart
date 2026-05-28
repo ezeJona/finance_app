@@ -244,6 +244,48 @@ class ApiService {
     }
   }
 
+  static Future<List<DebtRes>> fetchDebtsByBusiness(int businessId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('debts')
+          .select()
+          .eq('business_id', businessId)
+          .order('created_at', ascending: false);
+      return response.map((json) => DebtRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Error al obtener deudas: $e');
+    }
+  }
+
+  static Future<DebtRes> createDebt(CreateDebtReq req) async {
+    try {
+      final Map<String, dynamic> response = await _supabase
+          .from('debts')
+          .insert(req.toJson())
+          .select()
+          .single();
+      return DebtRes.fromJson(response);
+    } catch (e) {
+      throw Exception('Error al crear deuda: $e');
+    }
+  }
+
+  static Future<DebtPaymentRes> createDebtPayment(CreateDebtPaymentReq req) async {
+    try {
+      final Map<String, dynamic> response = await _supabase
+          .from('debt_payments')
+          .insert(req.toJson())
+          .select()
+          .single();
+      return DebtPaymentRes.fromJson(response);
+    } on PostgrestException catch (e) {
+      // El Trigger puede lanzar excepciones si el abono excede el saldo
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Error al registrar abono: $e');
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(
