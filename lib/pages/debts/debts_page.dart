@@ -49,7 +49,7 @@ class DebtsPage extends HookConsumerWidget {
                 ),
               ],
             ),
-            _buildBottomActionButtons(context, ref, business?.id),
+            _buildBottomActionButtons(context, ref, business),
           ],
         ),
       ),
@@ -248,7 +248,7 @@ class DebtsPage extends HookConsumerWidget {
   }
 
   // 4. Botones de Acción Inferiores
-  Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, int? businessId) {
+  Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, BusinessRes? business) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
@@ -256,11 +256,19 @@ class DebtsPage extends HookConsumerWidget {
         child: Row(
           children: [
             Expanded(
-              child: _buildActionButton('POR COBRAR', incomeGreen, () => _showAddDebtDialog(context, ref, businessId, 'to_collect')),
+              child: _buildActionButton(
+                'POR COBRAR', 
+                incomeGreen, 
+                () => _showDebtModal(context, ref, business, 'to_collect')
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionButton('POR PAGAR', expenseRed, () => _showAddDebtDialog(context, ref, businessId, 'to_pay')),
+              child: _buildActionButton(
+                'POR PAGAR', 
+                expenseRed, 
+                () => _showDebtModal(context, ref, business, 'to_pay')
+              ),
             ),
           ],
         ),
@@ -320,6 +328,17 @@ class DebtsPage extends HookConsumerWidget {
               children: [
                 if (debt.description != null && debt.description!.isNotEmpty)
                   Text(debt.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
+                if (debt.dueDate != null)
+                  Text(
+                    'Vence: ${DateFormat('dd/MM/yyyy').format(debt.dueDate!)}',
+                    style: TextStyle(
+                      color: debt.status == 'pending' && debt.dueDate!.isBefore(DateTime.now()) 
+                        ? expenseRed 
+                        : textGray,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500
+                    ),
+                  ),
                 Text(
                   debt.status == 'paid' ? 'Pagado' : 'Pendiente',
                   style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600),
@@ -343,110 +362,364 @@ class DebtsPage extends HookConsumerWidget {
                   const Text('Toca para pagar', style: TextStyle(fontSize: 10, color: textGray)),
               ],
             ),
-            onTap: debt.status == 'pending' ? () => _showAddPaymentDialog(context, ref, debt, currency) : null,
+            onTap: debt.status == 'pending' ? () => _showPaymentModal(context, ref, debt, currency) : null,
           ),
         );
       },
     );
   }
 
-  void _showAddDebtDialog(BuildContext context, WidgetRef ref, int? businessId, String type) {
-    if (businessId == null) return;
-    
-    final nameController = TextEditingController();
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController();
+  void _showDebtModal(BuildContext context, WidgetRef ref, BusinessRes? business, String type) {
+    if (business == null) return;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(type == 'to_collect' ? 'Nueva Cuenta por Cobrar' : 'Nueva Cuenta por Pagar'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre del contacto')),
-            TextField(controller: amountController, decoration: const InputDecoration(labelText: 'Monto total'), keyboardType: TextInputType.number),
-            TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Descripción (Opcional)')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty || amountController.text.isEmpty) return;
-              final amount = double.tryParse(amountController.text);
-              if (amount == null) return;
-
-              final req = CreateDebtReq(
-                businessId: businessId,
-                type: type,
-                contactName: nameController.text,
-                totalAmount: amount,
-                description: descriptionController.text,
-              );
-
-              try {
-                await ref.read(debtsProvider.notifier).addDebt(req);
-                if (context.mounted) Navigator.pop(context);
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
       ),
+      builder: (context) => _DebtForm(business: business, ref: ref, type: type),
     );
   }
 
-  void _showAddPaymentDialog(BuildContext context, WidgetRef ref, DebtRes debt, String currency) {
-    final amountController = TextEditingController(text: debt.remainingAmount.toString());
-    final String symbol = currency == 'USD' ? '\$' : 'C\$';
-
-    showDialog(
+  void _showPaymentModal(BuildContext context, WidgetRef ref, DebtRes debt, String currency) {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar Pago/Abono'),
-        content: Column(
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (context) => _DebtPaymentForm(debt: debt, ref: ref, currency: currency),
+    );
+  }
+}
+
+class _DebtForm extends StatefulWidget {
+  final BusinessRes business;
+  final WidgetRef ref;
+  final String type; // 'to_collect' or 'to_pay'
+
+  const _DebtForm({required this.business, required this.ref, required this.type});
+
+  @override
+  State<_DebtForm> createState() => _DebtFormState();
+}
+
+class _DebtFormState extends State<_DebtForm> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amountController;
+  late final TextEditingController _nameController;
+  late final TextEditingController _descriptionController;
+  DateTime? _selectedDate;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController();
+    _nameController = TextEditingController();
+    _descriptionController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+      final req = CreateDebtReq(
+        businessId: widget.business.id,
+        type: widget.type,
+        contactName: _nameController.text,
+        totalAmount: amount,
+        description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+        dueDate: _selectedDate,
+      );
+
+      await widget.ref.read(debtsProvider.notifier).addDebt(req);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.type == 'to_collect' ? 'Cuenta por cobrar registrada' : 'Cuenta por pagar registrada'),
+            backgroundColor: widget.type == 'to_collect' ? DebtsPage.incomeGreen : DebtsPage.expenseRed,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: DebtsPage.expenseRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color themeColor = widget.type == 'to_collect' ? DebtsPage.incomeGreen : DebtsPage.expenseRed;
+    final String title = widget.type == 'to_collect' ? 'NUEVA CUENTA POR COBRAR' : 'NUEVA CUENTA POR PAGAR';
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  title,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: themeColor),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Primero la cantidad
+              TextFormField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                autofocus: true,
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  labelText: 'Monto Total',
+                  prefixText: widget.business.currencyCode == 'USD' ? '\$ ' : 'C\$ ',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Nombre del contacto',
+                  hintText: '¿Quién debe pagar?',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  prefixIcon: const Icon(Icons.person_outline),
+                ),
+                validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Descripción (Opcional)',
+                  hintText: 'Ej. Préstamo para mercadería',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  prefixIcon: const Icon(Icons.description_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().add(const Duration(days: 7)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                    locale: const Locale('es'),
+                  );
+                  if (date != null) setState(() => _selectedDate = date);
+                },
+                borderRadius: BorderRadius.circular(15),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Fecha límite (Opcional)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                    prefixIcon: const Icon(Icons.calendar_today_outlined),
+                    suffixIcon: _selectedDate != null 
+                      ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _selectedDate = null))
+                      : null,
+                  ),
+                  child: Text(
+                    _selectedDate == null 
+                      ? 'Sin fecha límite' 
+                      : DateFormat("d 'de' MMMM, y", 'es').format(_selectedDate!),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                height: 56,
+                child: FilledButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: themeColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'GUARDAR',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DebtPaymentForm extends StatefulWidget {
+  final DebtRes debt;
+  final WidgetRef ref;
+  final String currency;
+
+  const _DebtPaymentForm({required this.debt, required this.ref, required this.currency});
+
+  @override
+  State<_DebtPaymentForm> createState() => _DebtPaymentFormState();
+}
+
+class _DebtPaymentFormState extends State<_DebtPaymentForm> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amountController;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController(text: widget.debt.remainingAmount.toString().replaceAll('.0', ''));
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+      final req = CreateDebtPaymentReq(
+        debtId: widget.debt.id,
+        amount: amount,
+      );
+
+      await widget.ref.read(debtsProvider.notifier).addPayment(req);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Abono registrado correctamente'),
+            backgroundColor: DebtsPage.incomeGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: DebtsPage.expenseRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String symbol = widget.currency == 'USD' ? '\$ ' : 'C\$ ';
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Deuda con: ${debt.contactName}'),
-            const SizedBox(height: 8),
-            Text('Saldo pendiente: $symbol ${debt.remainingAmount}'),
-            TextField(
-              controller: amountController,
-              decoration: const InputDecoration(labelText: 'Monto a pagar'),
-              keyboardType: TextInputType.number,
+            const Text(
+              'REGISTRAR ABONO',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DebtsPage.darkNavy),
+              textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Deuda con: ${widget.debt.contactName}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: DebtsPage.textGray),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                labelText: 'Monto a pagar',
+                prefixText: symbol,
+                helperText: 'Saldo pendiente: $symbol${widget.debt.remainingAmount}',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Requerido';
+                final amount = double.tryParse(val.replaceAll(',', '.'));
+                if (amount == null || amount <= 0) return 'Monto inválido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              height: 56,
+              child: FilledButton(
+                onPressed: _isLoading ? null : _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: DebtsPage.incomeGreen,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'REALIZAR PAGO',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount == null || amount <= 0) return;
-
-              final req = CreateDebtPaymentReq(
-                debtId: debt.id,
-                amount: amount,
-              );
-
-              try {
-                await ref.read(debtsProvider.notifier).addPayment(req);
-                if (context.mounted) Navigator.pop(context);
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
-                }
-              }
-            },
-            child: const Text('Pagar'),
-          ),
-        ],
       ),
     );
   }
