@@ -3,6 +3,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/app_user.dart';
 import '../../providers/business.dart';
+import '../../providers/auth_user.dart';
+import '../../providers/businesses.dart';
 import '../../providers/debts.dart';
 import '../../backend-api/dtos.dart';
 
@@ -14,21 +16,23 @@ class DebtsPage extends HookConsumerWidget {
   static const Color backgroundColor = Color(0xFFF5F6F8);
   static const Color darkNavy = Color(0xFF2C3E50);
   static const Color incomeGreen = Color(0xFF00A86B);
+  static const Color emeraldGreen = Color(0xFF2ECC71);
   static const Color expenseRed = Color(0xFFFF2D55);
   static const Color textGray = Color(0xFF7F8C8D);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appUser = ref.watch(appUserProvider);
+    final authUser = ref.watch(authUserProvider);
     final business = ref.watch(businessProvider);
+    final businessesAsync = ref.watch(businessesProvider);
     final debtsAsync = ref.watch(debtsProvider);
     final summary = ref.watch(debtsSummaryProvider);
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      drawer: const Drawer(),
+      drawer: _buildDrawer(context, ref, appUser, authUser, business, businessesAsync),
       body: SafeArea(
-        top: false,
         child: Stack(
           children: [
             Column(
@@ -40,9 +44,19 @@ class DebtsPage extends HookConsumerWidget {
                 ),
                 Expanded(
                   child: debtsAsync.when(
-                    data: (debts) => debts.isEmpty
-                        ? _buildEmptyState()
-                        : _buildDebtsList(context, ref, debts, business?.currencyCode ?? 'NIO'),
+                    data: (debts) => RefreshIndicator(
+                      onRefresh: () => ref.read(debtsProvider.notifier).fetchDebts(),
+                      color: primaryYellow,
+                      child: debts.isEmpty
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.5,
+                                child: _buildEmptyState(),
+                              ),
+                            )
+                          : _buildDebtsList(context, ref, debts, business?.currencyCode ?? 'NIO'),
+                    ),
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (e, st) => Center(child: Text('Error: $e')),
                   ),
@@ -52,6 +66,51 @@ class DebtsPage extends HookConsumerWidget {
             _buildBottomActionButtons(context, ref, business),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, WidgetRef ref, AppUserRes? appUser, AuthUserRes? authUser, BusinessRes? business, AsyncValue<List<BusinessRes>> businessesAsync) {
+    return Drawer(
+      child: Column(
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: const BoxDecoration(color: primaryYellow),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Text(
+                appUser?.firstName.isNotEmpty == true ? appUser!.firstName[0].toUpperCase() : "U",
+                style: const TextStyle(color: primaryYellow, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+            accountName: Text('${appUser?.firstName ?? "Usuario"} ${appUser?.firstLastName ?? ""}'),
+            accountEmail: Text(authUser?.email ?? ""),
+          ),
+          Expanded(
+            child: businessesAsync.when(
+              data: (businesses) => ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                    child: Text("MIS NEGOCIOS", style: TextStyle(color: textGray, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                  ...businesses.map((b) => ListTile(
+                    leading: const Icon(Icons.storefront, color: darkNavy),
+                    title: Text(b.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: b.id == business?.id ? const Icon(Icons.check_circle, color: incomeGreen, size: 20) : null,
+                    onTap: () {
+                      ref.read(businessProvider.notifier).set(b);
+                      Navigator.pop(context);
+                    },
+                  )),
+                ],
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Error: $err')),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -107,7 +166,7 @@ class DebtsPage extends HookConsumerWidget {
                       subTitle,
                       style: TextStyle(
                         fontSize: 13, 
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w500
                       ),
                       textAlign: TextAlign.center,
@@ -362,10 +421,19 @@ class DebtsPage extends HookConsumerWidget {
                   const Text('Toca para pagar', style: TextStyle(fontSize: 10, color: textGray)),
               ],
             ),
-            onTap: debt.status == 'pending' ? () => _showPaymentModal(context, ref, debt, currency) : null,
+            onTap: () => _showDebtDetailsModal(context, ref, debt, currency),
           ),
         );
       },
+    );
+  }
+
+  void _showDebtDetailsModal(BuildContext context, WidgetRef ref, DebtRes debt, String currency) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DebtDetailsModal(debt: debt, currency: currency),
     );
   }
 
@@ -378,34 +446,22 @@ class DebtsPage extends HookConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
       ),
-      builder: (context) => _DebtForm(business: business, ref: ref, type: type),
-    );
-  }
-
-  void _showPaymentModal(BuildContext context, WidgetRef ref, DebtRes debt, String currency) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
-      ),
-      builder: (context) => _DebtPaymentForm(debt: debt, ref: ref, currency: currency),
+      builder: (context) => _DebtForm(business: business, type: type),
     );
   }
 }
 
-class _DebtForm extends StatefulWidget {
+class _DebtForm extends ConsumerStatefulWidget {
   final BusinessRes business;
-  final WidgetRef ref;
   final String type; // 'to_collect' or 'to_pay'
 
-  const _DebtForm({required this.business, required this.ref, required this.type});
+  const _DebtForm({required this.business, required this.type});
 
   @override
-  State<_DebtForm> createState() => _DebtFormState();
+  ConsumerState<_DebtForm> createState() => _DebtFormState();
 }
 
-class _DebtFormState extends State<_DebtForm> {
+class _DebtFormState extends ConsumerState<_DebtForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountController;
   late final TextEditingController _nameController;
@@ -445,7 +501,7 @@ class _DebtFormState extends State<_DebtForm> {
         dueDate: _selectedDate,
       );
 
-      await widget.ref.read(debtsProvider.notifier).addDebt(req);
+      await ref.read(debtsProvider.notifier).addDebt(req);
 
       if (mounted) {
         Navigator.pop(context);
@@ -590,18 +646,18 @@ class _DebtFormState extends State<_DebtForm> {
   }
 }
 
-class _DebtPaymentForm extends StatefulWidget {
+class _DebtPaymentForm extends ConsumerStatefulWidget {
   final DebtRes debt;
-  final WidgetRef ref;
   final String currency;
+  final VoidCallback? onPaymentAdded;
 
-  const _DebtPaymentForm({required this.debt, required this.ref, required this.currency});
+  const _DebtPaymentForm({required this.debt, required this.currency, this.onPaymentAdded});
 
   @override
-  State<_DebtPaymentForm> createState() => _DebtPaymentFormState();
+  ConsumerState<_DebtPaymentForm> createState() => _DebtPaymentFormState();
 }
 
-class _DebtPaymentFormState extends State<_DebtPaymentForm> {
+class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountController;
   bool _isLoading = false;
@@ -630,7 +686,8 @@ class _DebtPaymentFormState extends State<_DebtPaymentForm> {
         amount: amount,
       );
 
-      await widget.ref.read(debtsProvider.notifier).addPayment(req);
+      await ref.read(debtsProvider.notifier).addPayment(req);
+      if (widget.onPaymentAdded != null) widget.onPaymentAdded!();
 
       if (mounted) {
         Navigator.pop(context);
@@ -654,6 +711,10 @@ class _DebtPaymentFormState extends State<_DebtPaymentForm> {
 
   @override
   Widget build(BuildContext context) {
+    final liveDebt = ref.watch(debtsProvider).maybeWhen(
+          data: (list) => list.firstWhere((d) => d.id == widget.debt.id, orElse: () => widget.debt),
+          orElse: () => widget.debt,
+        );
     final String symbol = widget.currency == 'USD' ? '\$ ' : 'C\$ ';
 
     return Padding(
@@ -676,7 +737,7 @@ class _DebtPaymentFormState extends State<_DebtPaymentForm> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Deuda con: ${widget.debt.contactName}',
+              'Deuda con: ${liveDebt.contactName}',
               textAlign: TextAlign.center,
               style: const TextStyle(color: DebtsPage.textGray),
             ),
@@ -690,13 +751,14 @@ class _DebtPaymentFormState extends State<_DebtPaymentForm> {
               decoration: InputDecoration(
                 labelText: 'Monto a pagar',
                 prefixText: symbol,
-                helperText: 'Saldo pendiente: $symbol${widget.debt.remainingAmount}',
+                helperText: 'Saldo pendiente: $symbol${liveDebt.remainingAmount}',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
               ),
               validator: (val) {
                 if (val == null || val.isEmpty) return 'Requerido';
                 final amount = double.tryParse(val.replaceAll(',', '.'));
                 if (amount == null || amount <= 0) return 'Monto inválido';
+                if (amount > liveDebt.remainingAmount) return 'Excede el saldo';
                 return null;
               },
             ),
@@ -720,6 +782,152 @@ class _DebtPaymentFormState extends State<_DebtPaymentForm> {
             const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DebtDetailsModal extends ConsumerWidget {
+  final DebtRes debt;
+  final String currency;
+
+  const _DebtDetailsModal({required this.debt, required this.currency});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final liveDebt = ref.watch(debtsProvider).maybeWhen(
+          data: (list) => list.firstWhere((d) => d.id == debt.id, orElse: () => debt),
+          orElse: () => debt,
+        );
+    final paymentsAsync = ref.watch(debtPaymentsProvider(liveDebt.id));
+    final String symbol = currency == 'USD' ? '\$ ' : 'C\$ ';
+    final formatter = NumberFormat.currency(symbol: symbol, decimalDigits: 2);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      liveDebt.contactName,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: DebtsPage.darkNavy),
+                    ),
+                    Text(
+                      liveDebt.type == 'to_collect' ? 'Cuenta por cobrar' : 'Cuenta por pagar',
+                      style: const TextStyle(color: DebtsPage.textGray),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (liveDebt.status == 'paid' ? DebtsPage.incomeGreen : DebtsPage.expenseRed).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  liveDebt.status == 'paid' ? 'PAGADO' : 'PENDIENTE',
+                  style: TextStyle(
+                    color: liveDebt.status == 'paid' ? DebtsPage.incomeGreen : DebtsPage.expenseRed,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildInfoRow('Monto Total', formatter.format(liveDebt.totalAmount)),
+          _buildInfoRow('Saldo Restante', formatter.format(liveDebt.remainingAmount), isBold: true),
+          if (liveDebt.dueDate != null)
+            _buildInfoRow('Fecha de Vencimiento', DateFormat('dd/MM/yyyy').format(liveDebt.dueDate!)),
+          const Divider(height: 32),
+          const Text(
+            'HISTORIAL DE ABONOS',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: DebtsPage.textGray),
+          ),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
+            child: paymentsAsync.when(
+              data: (payments) => payments.isEmpty
+                  ? const Center(child: Text('No hay abonos registrados'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: payments.length,
+                      itemBuilder: (context, index) {
+                        final payment = payments[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.check_circle_outline, color: DebtsPage.incomeGreen),
+                          title: Text(formatter.format(payment.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(payment.paymentDate)),
+                          trailing: Text(payment.paymentMethod, style: const TextStyle(fontSize: 12, color: DebtsPage.textGray)),
+                        );
+                      },
+                    ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Text('Error: $e'),
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (liveDebt.status == 'pending')
+            SizedBox(
+              height: 54,
+              child: FilledButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25.0))),
+                    builder: (context) => _DebtPaymentForm(
+                      debt: liveDebt, 
+                      currency: currency,
+                      onPaymentAdded: () => ref.invalidate(debtPaymentsProvider(liveDebt.id)),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add_card),
+                label: const Text('REGISTRAR NUEVO ABONO', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: DebtsPage.incomeGreen,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: DebtsPage.textGray)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontSize: isBold ? 16 : 14,
+            ),
+          ),
+        ],
       ),
     );
   }

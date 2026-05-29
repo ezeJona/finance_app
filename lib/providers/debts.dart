@@ -54,6 +54,10 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
   }
 }
 
+final debtPaymentsProvider = FutureProvider.family<List<DebtPaymentRes>, String>((ref, debtId) async {
+  return await ApiService.fetchDebtPayments(debtId);
+});
+
 // Provider for debts summary
 final debtsSummaryProvider = Provider<({double toCollect, double toPay, int debtors, int creditors})>((ref) {
   final debtsAsync = ref.watch(debtsProvider);

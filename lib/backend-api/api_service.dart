@@ -286,6 +286,19 @@ class ApiService {
     }
   }
 
+  static Future<List<DebtPaymentRes>> fetchDebtPayments(String debtId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('debt_payments')
+          .select()
+          .eq('debt_id', debtId)
+          .order('payment_date', ascending: false);
+      return response.map((json) => DebtPaymentRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Error al obtener abonos: $e');
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(
