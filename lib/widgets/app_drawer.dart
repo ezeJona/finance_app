@@ -4,6 +4,7 @@ import '../providers/app_user.dart';
 import '../providers/business.dart';
 import '../providers/auth_user.dart';
 import '../providers/businesses.dart';
+import '../providers/destroy_session.dart';
 import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
 
@@ -167,6 +168,41 @@ class AppDrawer extends HookConsumerWidget {
                         _showAddBusinessModal(context, ref, authUser.id);
                       } else {
                         Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: expenseRed),
+                    title: const Text(
+                      'Cerrar Sesión',
+                      style: TextStyle(color: expenseRed, fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Cerrar Sesión'),
+                          content: const Text('¿Estás seguro de que deseas salir?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('CANCELAR', style: TextStyle(color: textGray)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('SALIR', style: TextStyle(color: expenseRed, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true) {
+                        await ApiService.signOutUser();
+                        destroySession(ref);
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                        }
                       }
                     },
                   ),
