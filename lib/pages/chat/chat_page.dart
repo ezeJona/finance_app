@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../colors.dart';
 import '../../utilities/openai.dart';
+import '../../widgets/app_drawer.dart';
+import '../../widgets/app_header.dart';
 
-class ChatPage extends StatefulWidget {
+class ChatPage extends StatefulHookConsumerWidget {
   const ChatPage({Key? key}) : super(key: key);
 
   @override
   _ChatPageState createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends ConsumerState<ChatPage> {
   final List<Map<String, String>> _messages = [];
   final TextEditingController _controller = TextEditingController();
   bool _isLoading = false;
@@ -74,48 +77,57 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(title: const Text("Chat box")),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: _messages.length,
-              itemBuilder: (_, index) => _buildMessage(_messages[index]),
-            ),
-          ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Text(
-                "Escribiendo...",
-                style: TextStyle(color: Colors.black54),
-              ),
-            ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            color: Colors.grey[200],
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    style: const TextStyle(color: Colors.black87),
-                    decoration: const InputDecoration(
-                      hintText: "Escribe un mensaje...",
-                      hintStyle: TextStyle(color: Colors.black45),
-                      border: InputBorder.none,
+      drawer: const AppDrawer(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(8),
+                      itemCount: _messages.length,
+                      itemBuilder: (_, index) => _buildMessage(_messages[index]),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: HospiredColors.primary),
-                  onPressed: _isLoading ? null : _sendMessage,
-                ),
-              ],
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        "Escribiendo...",
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    color: Colors.grey[200],
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            style: const TextStyle(color: Colors.black87),
+                            decoration: const InputDecoration(
+                              hintText: "Escribe un mensaje...",
+                              hintStyle: TextStyle(color: Colors.black45),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.send, color: HospiredColors.primary),
+                          onPressed: _isLoading ? null : _sendMessage,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

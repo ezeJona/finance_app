@@ -1,42 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../backend-api/api_service.dart';
 import '../../backend-api/dtos.dart';
 import '../../breakpoints.dart';
 import '../../colors.dart';
 import '../../text_styles.dart';
+import '../../widgets/app_drawer.dart';
+import '../../widgets/app_header.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends HookConsumerWidget {
   const ProfilePage({super.key});
-
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  AppUserRes? userData;
-  BusinessRes? businessData;
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfileData();
-  }
-
-  Future<void> _loadProfileData() async {
-    final session = ApiService.checkAndGetUserSession();
-    if (session == null) return;
-
-    final appUser = await ApiService.getAppUser(session.id);
-    final business = await ApiService.getBusiness(session.id);
-
-    setState(() {
-      userData = appUser;
-      businessData = business;
-      isLoading = false;
-    });
-  }
 
   Future<void> _logout(BuildContext context) async {
     await ApiService.signOutUser();
@@ -44,32 +18,57 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Usamos FutureBuilder para mantener la lógica de carga asíncrona que tenía el StatefulWidget
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Perfil Comercial'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _logout(context),
-            tooltip: 'Cerrar Sesión',
-          ),
-        ],
+      drawer: const AppDrawer(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const AppHeader(),
+            Expanded(
+              child: FutureBuilder(
+                future: _loadProfileData(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || snapshot.data == null) {
+                    return const Center(child: Text("Error al cargar perfil"));
+                  }
+                  
+                  final data = snapshot.data as Map<String, dynamic>;
+                  final userData = data['user'] as AppUserRes?;
+                  final businessData = data['business'] as BusinessRes?;
+                  
+                  return _buildProfileView(context, userData, businessData);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildProfileView(),
     );
   }
 
-  Widget _buildProfileView() {
+  Future<Map<String, dynamic>> _loadProfileData() async {
+    final session = ApiService.checkAndGetUserSession();
+    if (session == null) throw Exception("Sin sesión");
+
+    final appUser = await ApiService.getAppUser(session.id);
+    final business = await ApiService.getBusiness(session.id);
+    
+    return {'user': appUser, 'business': business};
+  }
+
+  Widget _buildProfileView(BuildContext context, AppUserRes? userData, BusinessRes? businessData) {
     if (userData == null) {
       return const Center(child: Text("No se encontraron datos del usuario."));
     }
 
     final Map<String, String> profileMap = {
-      "Propietario": "${userData!.firstName} ${userData!.secondName ?? ''}".trim(),
-      "Apellidos": "${userData!.firstLastName} ${userData!.secondLastName ?? ''}".trim(),
+      "Propietario": "${userData.firstName} ${userData.secondName ?? ''}".trim(),
+      "Apellidos": "${userData.firstLastName} ${userData.secondLastName ?? ''}".trim(),
       "Nombre del Negocio": businessData?.name ?? "Sin registrar",
       "Tipo de Negocio": businessData?.businessType ?? "Sin registrar",
       "Moneda Principal": businessData?.currencyCode ?? "Sin registrar",
@@ -97,7 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "${userData!.firstName} ${userData!.firstLastName}",
+                      "${userData.firstName} ${userData.firstLastName}",
                       style: HospiredTextStyle.title2,
                     ),
                     const SizedBox(height: 8),
@@ -135,6 +134,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: const Icon(Icons.edit_note_rounded),
                   label: const Text("Editar Información"),
                 ),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => _logout(context),
+                icon: const Icon(Icons.logout, color: HospiredColors.danger),
+                label: const Text("Cerrar Sesión", style: TextStyle(color: HospiredColors.danger)),
               ),
             ],
           ),

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../providers/app_user.dart';
 import '../../providers/business.dart';
-import '../../providers/auth_user.dart';
-import '../../providers/businesses.dart';
 import '../../providers/debts.dart';
 import '../../backend-api/dtos.dart';
+import '../../widgets/app_drawer.dart';
+import '../../widgets/app_header.dart';
 
 class DebtsPage extends HookConsumerWidget {
   const DebtsPage({super.key});
@@ -22,22 +21,19 @@ class DebtsPage extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appUser = ref.watch(appUserProvider);
-    final authUser = ref.watch(authUserProvider);
     final business = ref.watch(businessProvider);
-    final businessesAsync = ref.watch(businessesProvider);
     final debtsAsync = ref.watch(debtsProvider);
     final summary = ref.watch(debtsSummaryProvider);
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      drawer: _buildDrawer(context, ref, appUser, authUser, business, businessesAsync),
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: Stack(
           children: [
             Column(
               children: [
-                _buildHeader(context, appUser, business),
+                const AppHeader(),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                   child: _buildDebtsSummaryCard(business?.currencyCode ?? 'NIO', summary),
@@ -66,123 +62,6 @@ class DebtsPage extends HookConsumerWidget {
             _buildBottomActionButtons(context, ref, business),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context, WidgetRef ref, AppUserRes? appUser, AuthUserRes? authUser, BusinessRes? business, AsyncValue<List<BusinessRes>> businessesAsync) {
-    return Drawer(
-      child: Column(
-        children: [
-          UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: primaryYellow),
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Text(
-                appUser?.firstName.isNotEmpty == true ? appUser!.firstName[0].toUpperCase() : "U",
-                style: const TextStyle(color: primaryYellow, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
-            accountName: Text('${appUser?.firstName ?? "Usuario"} ${appUser?.firstLastName ?? ""}'),
-            accountEmail: Text(authUser?.email ?? ""),
-          ),
-          Expanded(
-            child: businessesAsync.when(
-              data: (businesses) => ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                    child: Text("MIS NEGOCIOS", style: TextStyle(color: textGray, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                  ...businesses.map((b) => ListTile(
-                    leading: const Icon(Icons.storefront, color: darkNavy),
-                    title: Text(b.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    trailing: b.id == business?.id ? const Icon(Icons.check_circle, color: incomeGreen, size: 20) : null,
-                    onTap: () {
-                      ref.read(businessProvider.notifier).set(b);
-                      Navigator.pop(context);
-                    },
-                  )),
-                ],
-              ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error: $err')),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 1. Header
-  Widget _buildHeader(BuildContext context, AppUserRes? appUser, BusinessRes? business) {
-    final double statusBarHeight = MediaQuery.of(context).padding.top;
-    
-    String businessName = business?.name ?? "Cargando...";
-    String subTitle = "";
-    if (business != null) {
-      subTitle = "${business.businessType} • ${appUser?.firstName ?? 'Usuario'}";
-    } else if (appUser != null) {
-      subTitle = "${appUser.firstName} ${appUser.firstLastName}";
-    }
-
-    return Container(
-      padding: EdgeInsets.only(top: statusBarHeight + 16, left: 16, right: 16, bottom: 20),
-      decoration: const BoxDecoration(
-        color: primaryYellow,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu, color: Colors.white),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      businessName,
-                      style: const TextStyle(
-                        fontSize: 19, 
-                        fontWeight: FontWeight.bold, 
-                        color: Colors.white,
-                        letterSpacing: 0.5
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subTitle,
-                      style: TextStyle(
-                        fontSize: 13, 
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              CircleAvatar(
-                backgroundColor: Colors.white.withOpacity(0.3),
-                child: const Text('?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-        ],
       ),
     );
   }
