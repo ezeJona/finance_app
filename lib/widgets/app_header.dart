@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/app_user.dart';
 import '../providers/business.dart';
+import '../providers/connectivity.dart';
+import '../providers/sync_provider.dart';
 
 class AppHeader extends HookConsumerWidget {
   const AppHeader({super.key});
@@ -9,11 +11,14 @@ class AppHeader extends HookConsumerWidget {
   // Colores consistentes
   static const Color primaryYellow = Color(0xFFF1C40F);
   static const Color darkNavy = Color(0xFF2C3E50);
+  static const Color expenseRed = Color(0xFFFF2D55);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appUser = ref.watch(appUserProvider);
     final business = ref.watch(businessProvider);
+    final connectivity = ref.watch(connectivityStatusProvider);
+    final syncCount = ref.watch(syncQueueCountProvider).value ?? 0;
     
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     
@@ -29,7 +34,7 @@ class AppHeader extends HookConsumerWidget {
     }
 
     return Container(
-      padding: EdgeInsets.only(top: statusBarHeight + 16, left: 16, right: 16, bottom: 20),
+      padding: EdgeInsets.only(top: statusBarHeight + 8, left: 16, right: 16, bottom: 20),
       decoration: const BoxDecoration(
         color: primaryYellow,
         borderRadius: BorderRadius.only(
@@ -39,6 +44,48 @@ class AppHeader extends HookConsumerWidget {
       ),
       child: Column(
         children: [
+          if (connectivity == ConnectivityStatus.isDisconnected)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.wifi_off, size: 14, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    "⚠️ Modo Offline (Sin conexión)",
+                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          
+          if (connectivity == ConnectivityStatus.isConnected && syncCount > 0)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 4, height: 4, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Sincronizando $syncCount cambios...",
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+
           // Fila superior: Perfil, Nombre del Negocio y Ayuda
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

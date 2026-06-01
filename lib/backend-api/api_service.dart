@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:uuid/uuid.dart';
 import 'dtos.dart';
+import 'sync_service.dart';
 
 // All API functions to make requests to the supabase backend go here
 class ApiService {
@@ -160,6 +161,26 @@ class ApiService {
   }
 
   static Future<TransactionRes> createTransaction(CreateTransactionReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      final tempId = const Uuid().v4();
+      final optimisticTx = TransactionRes(
+        id: tempId,
+        businessId: req.businessId,
+        type: req.type,
+        amount: req.amount,
+        description: req.description,
+        paymentMethod: req.paymentMethod,
+        contactName: req.contactName,
+        category: req.category,
+        transactionDate: req.transactionDate,
+        createdAt: DateTime.now(),
+      );
+      
+      await SyncService.queueAction('create_transaction', req.toJson());
+      return optimisticTx;
+    }
+
     try {
       final Map<String, dynamic> response = await _supabase
           .from('transactions')
@@ -168,7 +189,9 @@ class ApiService {
           .single();
       return TransactionRes.fromJson(response);
     } catch (e) {
-      throw Exception('Failed to create transaction: $e');
+      // Fallback a offline si hay error de red
+      await SyncService.queueAction('create_transaction', req.toJson());
+      rethrow;
     }
   }
 
@@ -187,10 +210,16 @@ class ApiService {
   }
 
   static Future<void> deleteTransaction(String id) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      await SyncService.queueAction('delete_transaction', {'id': id});
+      return;
+    }
     try {
       await _supabase.from('transactions').delete().eq('id', id);
     } catch (e) {
-      throw Exception('Failed to delete transaction: $e');
+      await SyncService.queueAction('delete_transaction', {'id': id});
+      rethrow;
     }
   }
 
@@ -258,6 +287,24 @@ class ApiService {
   }
 
   static Future<DebtRes> createDebt(CreateDebtReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      final tempId = const Uuid().v4();
+      final optimisticDebt = DebtRes(
+        id: tempId,
+        businessId: req.businessId,
+        type: req.type,
+        contactName: req.contactName,
+        totalAmount: req.totalAmount,
+        remainingAmount: req.totalAmount,
+        status: 'pending',
+        dueDate: req.dueDate,
+        description: req.description,
+        createdAt: DateTime.now(),
+      );
+      await SyncService.queueAction('create_debt', req.toJson());
+      return optimisticDebt;
+    }
     try {
       final Map<String, dynamic> response = await _supabase
           .from('debts')
@@ -266,11 +313,26 @@ class ApiService {
           .single();
       return DebtRes.fromJson(response);
     } catch (e) {
-      throw Exception('Error al crear deuda: $e');
+      await SyncService.queueAction('create_debt', req.toJson());
+      rethrow;
     }
   }
 
   static Future<DebtPaymentRes> createDebtPayment(CreateDebtPaymentReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      final tempId = const Uuid().v4();
+      final optimisticPayment = DebtPaymentRes(
+        id: tempId,
+        debtId: req.debtId,
+        amount: req.amount,
+        paymentMethod: req.paymentMethod,
+        paymentDate: req.paymentDate,
+        createdAt: DateTime.now(),
+      );
+      await SyncService.queueAction('create_debt_payment', req.toJson());
+      return optimisticPayment;
+    }
     try {
       final Map<String, dynamic> response = await _supabase
           .from('debt_payments')
@@ -279,10 +341,10 @@ class ApiService {
           .single();
       return DebtPaymentRes.fromJson(response);
     } on PostgrestException catch (e) {
-      // El Trigger puede lanzar excepciones si el abono excede el saldo
       throw Exception(e.message);
     } catch (e) {
-      throw Exception('Error al registrar abono: $e');
+      await SyncService.queueAction('create_debt_payment', req.toJson());
+      rethrow;
     }
   }
 

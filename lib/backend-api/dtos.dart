@@ -549,6 +549,16 @@ class CreateDebtReq {
   DateTime? dueDate;
   String? description;
 
+  factory CreateDebtReq.fromJson(Map<String, dynamic> json) => CreateDebtReq(
+        businessId: json["business_id"],
+        type: json["type"],
+        contactName: json["contact_name"],
+        totalAmount: (json["total_amount"] as num).toDouble(),
+        dueDate:
+            json["due_date"] == null ? null : DateTime.parse(json["due_date"]),
+        description: json["description"],
+      );
+
   Map<String, dynamic> toJson() => {
         "business_id": businessId,
         "type": type,
@@ -572,6 +582,16 @@ class CreateDebtPaymentReq {
   double amount;
   String paymentMethod;
   DateTime paymentDate;
+
+  factory CreateDebtPaymentReq.fromJson(Map<String, dynamic> json) =>
+      CreateDebtPaymentReq(
+        debtId: json["debt_id"],
+        amount: (json["amount"] as num).toDouble(),
+        paymentMethod: json["payment_method"] ?? 'Efectivo',
+        paymentDate: json["payment_date"] == null
+            ? null
+            : DateTime.parse(json["payment_date"]),
+      );
 
   Map<String, dynamic> toJson() => {
         "debt_id": debtId,
@@ -602,15 +622,29 @@ class CreateTransactionReq {
   String? contactName;
   DateTime transactionDate;
 
+  factory CreateTransactionReq.fromJson(Map<String, dynamic> json) =>
+      CreateTransactionReq(
+        businessId: json["business_id"],
+        type: json["type"],
+        amount: (json["amount"] as num).toDouble(),
+        description: json["description"],
+        paymentMethod: json["payment_method"] ?? 'Efectivo',
+        category: json["category"] ?? 'General',
+        contactName: json["contact_name"],
+        transactionDate: json["transaction_date"] == null
+            ? null
+            : DateTime.parse(json["transaction_date"]),
+      );
+
   Map<String, dynamic> toJson() => {
-    "business_id": businessId,
-    "type": type,
-    "amount": amount,
-    "description": description,
-    "payment_method": paymentMethod,
-    "category": category,
-    "contact_name": contactName,
-    "transaction_date": transactionDate.toIso8601String(),
-  };
+        "business_id": businessId,
+        "type": type,
+        "amount": amount,
+        "description": description,
+        "payment_method": paymentMethod,
+        "category": category,
+        "contact_name": contactName,
+        "transaction_date": transactionDate.toIso8601String(),
+      };
 }
 

@@ -6,6 +6,7 @@ import '../../providers/transactions.dart';
 import '../../providers/transaction_filter.dart';
 import '../../backend-api/api_service.dart';
 import '../../backend-api/dtos.dart';
+import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/app_header.dart';
 
@@ -43,25 +44,27 @@ class BalancePage extends HookConsumerWidget {
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                        child: historicAsync.when(
+                        child: historicAsync.maybeWhen(
                           data: (transactions) => _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
-                          loading: () => const Center(child: LinearProgressIndicator()),
-                          error: (err, stack) => Text('Error en saldos: $err', style: const TextStyle(color: expenseRed)),
+                          loading: () => historicAsync.hasValue 
+                              ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
+                              : const Center(child: LinearProgressIndicator()),
+                          error: (err, stack) => historicAsync.hasValue
+                              ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
+                              : Text('Error en saldos: $err', style: const TextStyle(color: expenseRed)),
+                          orElse: () => const Center(child: LinearProgressIndicator()),
                         ),
                       ),
                       Expanded(
-                        child: transactionsAsync.when(
-                          data: (transactions) => ListView(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            children: [
-                              _buildFilterBar(context, ref, filter),
-                              const SizedBox(height: 16),
-                              _buildTransactionList(context, ref, transactions, business?.currencyCode ?? 'NIO'),
-                              const SizedBox(height: 100), // Espacio para no tapar el contenido con los botones inferiores
-                            ],
-                          ),
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (err, stack) => Center(child: Text('Error al cargar transacciones: $err')),
+                        child: transactionsAsync.maybeWhen(
+                          data: (transactions) => _buildTransactionContent(context, ref, transactions, business, filter),
+                          loading: () => transactionsAsync.hasValue 
+                              ? _buildTransactionContent(context, ref, transactionsAsync.value!, business, filter)
+                              : const Center(child: CircularProgressIndicator()),
+                          error: (err, stack) => transactionsAsync.hasValue
+                              ? _buildTransactionContent(context, ref, transactionsAsync.value!, business, filter)
+                              : Center(child: Text('Error al cargar transacciones: $err')),
+                          orElse: () => const Center(child: CircularProgressIndicator()),
                         ),
                       ),
                     ],
@@ -76,7 +79,17 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  // 3. TARJETA DE MÉTRICAS (Resumen Financiero)
+  Widget _buildTransactionContent(BuildContext context, WidgetRef ref, List<TransactionRes> transactions, BusinessRes? business, TransactionFilterState filter) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      children: [
+        _buildFilterBar(context, ref, filter),
+        const SizedBox(height: 16),
+        _buildTransactionList(context, ref, transactions, business?.currencyCode ?? 'NIO'),
+        const SizedBox(height: 100),
+      ],
+    );
+  }
   Widget _buildMetricsCard(List<TransactionRes> transactions, String currency) {
     double totalIncome = 0;
     double totalExpense = 0;
@@ -514,12 +527,16 @@ class BalancePage extends HookConsumerWidget {
 
     if (confirmed == true) {
       try {
+        final online = await SyncService.isOnline();
         await ApiService.deleteTransaction(tx.id);
         ref.invalidate(transactionsProvider);
         ref.invalidate(historicTransactionsProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Movimiento eliminado'), backgroundColor: incomeGreen),
+            SnackBar(
+              content: Text(online ? 'Movimiento eliminado' : 'Eliminado localmente (pendiente sync)'), 
+              backgroundColor: online ? incomeGreen : Colors.orange
+            ),
           );
         }
       } catch (e) {
@@ -747,23 +764,32 @@ class _TransactionFormState extends State<_TransactionForm> {
         transactionDate: _selectedDate,
       );
 
+      final online = await SyncService.isOnline();
+
       if (widget.transaction == null) {
-        await ApiService.createTransaction(req);
+        final newTx = await ApiService.createTransaction(req);
+        // Actualización optimista inmediata en el provider
+        widget.ref.read(transactionsProvider.notifier).addOptimistic(newTx);
       } else {
         await ApiService.updateTransaction(widget.transaction!.id, req);
       }
 
-      widget.ref.invalidate(transactionsProvider);
+      // Refrescar para sincronizar con el backend en segundo plano
+      widget.ref.read(transactionsProvider.notifier).refresh();
       widget.ref.invalidate(historicTransactionsProvider);
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.transaction == null 
-              ? (widget.type == 'income' ? 'Ingreso registrado' : 'Pago registrado')
-              : 'Cambios guardados correctamente'),
-            backgroundColor: widget.type == 'income' ? BalancePage.incomeGreen : BalancePage.expenseRed,
+            content: Text(online 
+              ? (widget.transaction == null 
+                  ? (widget.type == 'income' ? 'Ingreso registrado' : 'Pago registrado')
+                  : 'Cambios guardados correctamente')
+              : 'Guardado localmente. Se sincronizará al recuperar internet'),
+            backgroundColor: online 
+              ? (widget.type == 'income' ? BalancePage.incomeGreen : BalancePage.expenseRed)
+              : Colors.orange,
           ),
         );
       }

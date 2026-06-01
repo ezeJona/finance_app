@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_user.dart';
 import '../providers/business.dart';
 import '../providers/auth_user.dart';
@@ -151,8 +152,14 @@ class AppDrawer extends HookConsumerWidget {
                             ),
                           ],
                         ),
-                        onTap: () {
+                        onTap: () async {
+                          // Establecer el negocio en el provider (el notifier ya persiste localmente)
                           ref.read(businessProvider.notifier).set(b);
+                          
+                          // Persistencia explícita solicitada para asegurar UX fluida
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setInt('last_active_business_id', b.id);
+
                           if (context.mounted) Navigator.pop(context);
                         },
                       )),

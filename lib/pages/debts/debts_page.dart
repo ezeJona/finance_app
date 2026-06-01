@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/business.dart';
 import '../../providers/debts.dart';
 import '../../backend-api/dtos.dart';
+import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/app_header.dart';
 
@@ -39,22 +40,15 @@ class DebtsPage extends HookConsumerWidget {
                   child: _buildDebtsSummaryCard(business?.currencyCode ?? 'NIO', summary),
                 ),
                 Expanded(
-                  child: debtsAsync.when(
-                    data: (debts) => RefreshIndicator(
-                      onRefresh: () => ref.read(debtsProvider.notifier).fetchDebts(),
-                      color: primaryYellow,
-                      child: debts.isEmpty
-                          ? SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.5,
-                                child: _buildEmptyState(),
-                              ),
-                            )
-                          : _buildDebtsList(context, ref, debts, business?.currencyCode ?? 'NIO'),
-                    ),
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Center(child: Text('Error: $e')),
+                  child: debtsAsync.maybeWhen(
+                    data: (debts) => _buildDebtsContent(context, ref, debts, business),
+                    loading: () => debtsAsync.hasValue
+                        ? _buildDebtsContent(context, ref, debtsAsync.value!, business)
+                        : const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => debtsAsync.hasValue
+                        ? _buildDebtsContent(context, ref, debtsAsync.value!, business)
+                        : Center(child: Text('Error: $e')),
+                    orElse: () => const Center(child: CircularProgressIndicator()),
                   ),
                 ),
               ],
@@ -63,6 +57,22 @@ class DebtsPage extends HookConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDebtsContent(BuildContext context, WidgetRef ref, List<DebtRes> debts, BusinessRes? business) {
+    return RefreshIndicator(
+      onRefresh: () => ref.read(debtsProvider.notifier).fetchDebts(),
+      color: primaryYellow,
+      child: debts.isEmpty
+          ? SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.5,
+                child: _buildEmptyState(),
+              ),
+            )
+          : _buildDebtsList(context, ref, debts, business?.currencyCode ?? 'NIO'),
     );
   }
 
@@ -380,14 +390,19 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
         dueDate: _selectedDate,
       );
 
+      final online = await SyncService.isOnline();
       await ref.read(debtsProvider.notifier).addDebt(req);
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.type == 'to_collect' ? 'Cuenta por cobrar registrada' : 'Cuenta por pagar registrada'),
-            backgroundColor: widget.type == 'to_collect' ? DebtsPage.incomeGreen : DebtsPage.expenseRed,
+            content: Text(online 
+              ? (widget.type == 'to_collect' ? 'Cuenta por cobrar registrada' : 'Cuenta por pagar registrada')
+              : 'Guardado localmente. Se sincronizará al recuperar internet'),
+            backgroundColor: online 
+              ? (widget.type == 'to_collect' ? DebtsPage.incomeGreen : DebtsPage.expenseRed)
+              : Colors.orange,
           ),
         );
       }
@@ -565,15 +580,16 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
         amount: amount,
       );
 
+      final online = await SyncService.isOnline();
       await ref.read(debtsProvider.notifier).addPayment(req);
       if (widget.onPaymentAdded != null) widget.onPaymentAdded!();
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Abono registrado correctamente'),
-            backgroundColor: DebtsPage.incomeGreen,
+          SnackBar(
+            content: Text(online ? 'Abono registrado correctamente' : 'Guardado localmente. Se sincronizará luego'),
+            backgroundColor: online ? DebtsPage.incomeGreen : Colors.orange,
           ),
         );
       }

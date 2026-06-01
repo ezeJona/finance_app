@@ -14,12 +14,16 @@ import '../profile/profile_page.dart';
 import '../chat/chat_page.dart';
 import 'bottom_nav_bar.dart';
 import 'side_nav_bar.dart';
+import '../../providers/sync_provider.dart';
 
 class HomePage extends HookConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Activar el servicio de sincronización
+    ref.watch(syncProvider);
+
     final loading = useState<bool>(true);
     final loadingError = useState<bool>(false);
     final appUser = ref.watch(appUserProvider);
