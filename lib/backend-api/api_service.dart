@@ -3,7 +3,6 @@ import 'package:uuid/uuid.dart';
 import 'dtos.dart';
 import 'sync_service.dart';
 
-// All API functions to make requests to the supabase backend go here
 class ApiService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -24,12 +23,13 @@ class ApiService {
 
   static Future<AppUserRes> createAppUser(CreateAppUserReq req) async {
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('app_users')
           .insert(req.toJson())
-          .select()
-          .single();
-      return AppUserRes.fromJson(response);
+          .select();
+      
+      if (response.isEmpty) throw Exception('No se pudo crear el usuario');
+      return AppUserRes.fromJson(response.first);
     } catch (e) {
       throw Exception('Failed to create app user: $e');
     }
@@ -37,12 +37,13 @@ class ApiService {
 
   static Future<BusinessRes> createBusiness(CreateBusinessReq req) async {
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('businesses')
           .insert(req.toJson())
-          .select()
-          .single();
-      return BusinessRes.fromJson(response);
+          .select();
+      
+      if (response.isEmpty) throw Exception('No se pudo crear el negocio');
+      return BusinessRes.fromJson(response.first);
     } catch (e) {
       throw Exception('Failed to create business: $e');
     }
@@ -50,13 +51,14 @@ class ApiService {
 
   static Future<BusinessRes> updateBusiness(int id, CreateBusinessReq req) async {
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('businesses')
           .update(req.toJson())
           .eq('id', id)
-          .select()
-          .single();
-      return BusinessRes.fromJson(response);
+          .select();
+      
+      if (response.isEmpty) throw Exception('No se encontró el negocio');
+      return BusinessRes.fromJson(response.first);
     } catch (e) {
       throw Exception('Failed to update business: $e');
     }
@@ -72,15 +74,12 @@ class ApiService {
 
   static Future<AppUserRes?> getAppUser(String id) async {
     try {
-      final Map<String, dynamic>? response = await _supabase
+      return await _supabase
           .from('app_users')
           .select()
           .eq('id', id)
-          .maybeSingle();
-      if (response != null) {
-        return AppUserRes.fromJson(response);
-      }
-      return null;
+          .maybeSingle()
+          .then((res) => res != null ? AppUserRes.fromJson(res) : null);
     } catch (e) {
       throw Exception('Failed to fetch app user: $e');
     }
@@ -88,13 +87,8 @@ class ApiService {
 
   static Future<List<MunicipalityRes>?> getMunicipalities() async {
     try {
-      final List<dynamic> response = await _supabase
-          .from('municipalities')
-          .select();
-      if (response.isNotEmpty) {
-        return response.map((json) => MunicipalityRes.fromJson(json)).toList();
-      }
-      return [];
+      final List<dynamic> response = await _supabase.from('municipalities').select();
+      return response.map((json) => MunicipalityRes.fromJson(json)).toList();
     } catch (e) {
       throw Exception('Failed to fetch municipalities: $e');
     }
@@ -114,7 +108,6 @@ class ApiService {
 
   static Future<BusinessRes?> getBusiness(String userId) async {
     try {
-      // 1. Intentar obtener el que el usuario marcó como predeterminado
       final Map<String, dynamic>? defaultBus = await _supabase
           .from('businesses')
           .select()
@@ -122,20 +115,15 @@ class ApiService {
           .eq('is_default', true)
           .maybeSingle();
 
-      if (defaultBus != null) {
-        return BusinessRes.fromJson(defaultBus);
-      }
+      if (defaultBus != null) return BusinessRes.fromJson(defaultBus);
 
-      // 2. Si no hay predeterminado, traer el primero que se encuentre
       final List<dynamic> response = await _supabase
           .from('businesses')
           .select()
           .eq('user_id', userId)
           .limit(1);
 
-      if (response.isNotEmpty) {
-        return BusinessRes.fromJson(response.first);
-      }
+      if (response.isNotEmpty) return BusinessRes.fromJson(response.first);
       return null;
     } catch (e) {
       throw Exception('Failed to fetch business: $e');
@@ -144,17 +132,8 @@ class ApiService {
 
   static Future<void> setBusinessAsDefault(int businessId, String userId) async {
     try {
-      // 1. Quitar el predeterminado a todos los negocios del usuario
-      await _supabase
-          .from('businesses')
-          .update({'is_default': false})
-          .eq('user_id', userId);
-      
-      // 2. Establecer el nuevo predeterminado
-      await _supabase
-          .from('businesses')
-          .update({'is_default': true})
-          .eq('id', businessId);
+      await _supabase.from('businesses').update({'is_default': false}).eq('user_id', userId);
+      await _supabase.from('businesses').update({'is_default': true}).eq('id', businessId);
     } catch (e) {
       throw Exception('Failed to set default business: $e');
     }
@@ -176,20 +155,19 @@ class ApiService {
         transactionDate: req.transactionDate,
         createdAt: DateTime.now(),
       );
-      
       await SyncService.queueAction('create_transaction', req.toJson());
       return optimisticTx;
     }
 
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('transactions')
           .insert(req.toJson())
-          .select()
-          .single();
-      return TransactionRes.fromJson(response);
+          .select();
+      
+      if (response.isEmpty) throw Exception('No se pudo crear la transacción');
+      return TransactionRes.fromJson(response.first);
     } catch (e) {
-      // Fallback a offline si hay error de red
       await SyncService.queueAction('create_transaction', req.toJson());
       rethrow;
     }
@@ -197,13 +175,14 @@ class ApiService {
 
   static Future<TransactionRes> updateTransaction(String id, CreateTransactionReq req) async {
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('transactions')
           .update(req.toJson())
           .eq('id', id)
-          .select()
-          .single();
-      return TransactionRes.fromJson(response);
+          .select();
+      
+      if (response.isEmpty) throw Exception('No se encontró la transacción');
+      return TransactionRes.fromJson(response.first);
     } catch (e) {
       throw Exception('Failed to update transaction: $e');
     }
@@ -247,24 +226,14 @@ class ApiService {
       PostgrestFilterBuilder<List<Map<String, dynamic>>> query = 
           _supabase.from('transactions').select().eq('business_id', businessId);
 
-      if (type != null && type != 'all') {
-        query = query.eq('type', type);
-      }
-
-      if (startDate != null) {
-        query = query.gte('transaction_date', startDate.toIso8601String());
-      }
-
-      if (endDate != null) {
-        query = query.lte('transaction_date', endDate.toIso8601String());
-      }
+      if (type != null && type != 'all') query = query.eq('type', type);
+      if (startDate != null) query = query.gte('transaction_date', startDate.toIso8601String());
+      if (endDate != null) query = query.lte('transaction_date', endDate.toIso8601String());
 
       PostgrestTransformBuilder<List<Map<String, dynamic>>> finalQuery = 
           query.order('transaction_date', ascending: false);
 
-      if (limit != null) {
-        finalQuery = finalQuery.limit(limit);
-      }
+      if (limit != null) finalQuery = finalQuery.limit(limit);
 
       final List<dynamic> response = await finalQuery;
       return response.map((json) => TransactionRes.fromJson(json)).toList();
@@ -282,7 +251,7 @@ class ApiService {
           .order('created_at', ascending: false);
       return response.map((json) => DebtRes.fromJson(json)).toList();
     } catch (e) {
-      throw Exception('Error al obtener deudas: $e');
+      throw Exception(e.toString());
     }
   }
 
@@ -306,15 +275,42 @@ class ApiService {
       return optimisticDebt;
     }
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('debts')
           .insert(req.toJson())
-          .select()
-          .single();
-      return DebtRes.fromJson(response);
+          .select();
+      
+      if (response.isEmpty) throw Exception('Error al insertar deuda: 0 filas devueltas');
+      return DebtRes.fromJson(response.first);
     } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception(e.toString());
+      }
       await SyncService.queueAction('create_debt', req.toJson());
       rethrow;
+    }
+  }
+
+  static Future<DebtRes> updateDebt(String id, CreateDebtReq req) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('debts')
+          .update(req.toUpdateJson())
+          .eq('id', id)
+          .select();
+      
+      if (response.isEmpty) throw Exception('Error al actualizar deuda: 0 filas devueltas. ID: $id');
+      return DebtRes.fromJson(response.first);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  static Future<void> deleteDebt(String id) async {
+    try {
+      await _supabase.from('debts').delete().eq('id', id);
+    } catch (e) {
+      throw Exception(e.toString());
     }
   }
 
@@ -334,17 +330,42 @@ class ApiService {
       return optimisticPayment;
     }
     try {
-      final Map<String, dynamic> response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('debt_payments')
           .insert(req.toJson())
-          .select()
-          .single();
-      return DebtPaymentRes.fromJson(response);
-    } on PostgrestException catch (e) {
-      throw Exception(e.message);
+          .select();
+      
+      if (response.isEmpty) throw Exception('Error al registrar abono: 0 filas devueltas');
+      return DebtPaymentRes.fromJson(response.first);
     } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception(e.toString());
+      }
       await SyncService.queueAction('create_debt_payment', req.toJson());
       rethrow;
+    }
+  }
+
+  static Future<DebtPaymentRes> updateDebtPayment(String id, CreateDebtPaymentReq req) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('debt_payments')
+          .update(req.toUpdateJson())
+          .eq('id', id)
+          .select();
+      
+      if (response.isEmpty) throw Exception('Error al actualizar abono: 0 filas devueltas. ID: $id');
+      return DebtPaymentRes.fromJson(response.first);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  static Future<void> deleteDebtPayment(String id) async {
+    try {
+      await _supabase.from('debt_payments').delete().eq('id', id);
+    } catch (e) {
+      throw Exception(e.toString());
     }
   }
 
@@ -357,16 +378,13 @@ class ApiService {
           .order('payment_date', ascending: false);
       return response.map((json) => DebtPaymentRes.fromJson(json)).toList();
     } catch (e) {
-      throw Exception('Error al obtener abonos: $e');
+      throw Exception(e.toString());
     }
   }
 
   static Future<User> signInUser(String email, String password) async {
     try {
-      final AuthResponse response = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      final AuthResponse response = await _supabase.auth.signInWithPassword(email: email, password: password);
       return response.user!;
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -375,23 +393,11 @@ class ApiService {
     }
   }
 
-  static Future<void> signOutUser() async {
-    try {
-      await _supabase.auth.signOut();
-    } on AuthException catch (e) {
-      throw Exception(e.message);
-    } catch (e) {
-      throw Exception('An unexpected error occurred: $e');
-    }
-  }
+  static Future<void> signOutUser() async => await _supabase.auth.signOut();
 
   static Future<void> signUpUser(String email, String password) async {
     try {
-      await _supabase.auth.signUp(
-        email: email,
-        password: password,
-        emailRedirectTo: 'https://hospired.github.io/hospired/',
-      );
+      await _supabase.auth.signUp(email: email, password: password, emailRedirectTo: 'https://hospired.github.io/hospired/');
     } on AuthException catch (e) {
       throw Exception(e.message);
     } catch (e) {

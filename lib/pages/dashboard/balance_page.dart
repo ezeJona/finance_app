@@ -90,6 +90,7 @@ class BalancePage extends HookConsumerWidget {
       ],
     );
   }
+
   Widget _buildMetricsCard(List<TransactionRes> transactions, String currency) {
     double totalIncome = 0;
     double totalExpense = 0;
@@ -400,6 +401,12 @@ class BalancePage extends HookConsumerWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onSelected: (value) {
+                // REGLA: Si el movimiento es un abono de deuda, interceptar
+                if (tx.debtPaymentId != null) {
+                  _showDebtPaymentWarning(context);
+                  return;
+                }
+                
                 switch (value) {
                   case 'edit':
                     _showTransactionModal(context, ref, null, tx.type, transaction: tx);
@@ -434,6 +441,24 @@ class BalancePage extends HookConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDebtPaymentWarning(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Movimiento Protegido'),
+        content: const Text(
+          'Este movimiento corresponde al abono de una deuda. Para modificarlo o eliminarlo, por favor gestiona el abono desde el detalle de la deuda correspondiente.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDIDO', style: TextStyle(color: darkNavy, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

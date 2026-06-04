@@ -378,6 +378,7 @@ class TransactionRes {
     required this.category,
     required this.transactionDate,
     required this.createdAt,
+    this.debtPaymentId,
   });
 
   String id;
@@ -390,6 +391,7 @@ class TransactionRes {
   String category;
   DateTime transactionDate;
   DateTime createdAt;
+  String? debtPaymentId;
 
   factory TransactionRes.fromJson(Map<String, dynamic> json) => TransactionRes(
     id: json["id"],
@@ -402,6 +404,7 @@ class TransactionRes {
     category: json["category"],
     transactionDate: DateTime.parse(json["transaction_date"]),
     createdAt: DateTime.parse(json["created_at"]),
+    debtPaymentId: json["debt_payment_id"],
   );
 
   Map<String, dynamic> toJson() => {
@@ -415,6 +418,7 @@ class TransactionRes {
     "category": category,
     "transaction_date": transactionDate.toIso8601String(),
     "created_at": createdAt.toIso8601String(),
+    "debt_payment_id": debtPaymentId,
   };
 
   TransactionRes copyWith({
@@ -428,6 +432,7 @@ class TransactionRes {
     String? category,
     DateTime? transactionDate,
     DateTime? createdAt,
+    String? debtPaymentId,
   }) {
     return TransactionRes(
       id: id ?? this.id,
@@ -440,6 +445,7 @@ class TransactionRes {
       category: category ?? this.category,
       transactionDate: transactionDate ?? this.transactionDate,
       createdAt: createdAt ?? this.createdAt,
+      debtPaymentId: debtPaymentId ?? this.debtPaymentId,
     );
   }
 }
@@ -568,6 +574,13 @@ class CreateDebtReq {
         "due_date": dueDate?.toIso8601String(),
         "description": description,
       };
+
+  Map<String, dynamic> toUpdateJson() => {
+        "contact_name": contactName,
+        "total_amount": totalAmount,
+        "due_date": dueDate?.toIso8601String(),
+        "description": description,
+      };
 }
 
 class CreateDebtPaymentReq {
@@ -595,6 +608,12 @@ class CreateDebtPaymentReq {
 
   Map<String, dynamic> toJson() => {
         "debt_id": debtId,
+        "amount": amount,
+        "payment_method": paymentMethod,
+        "payment_date": paymentDate.toIso8601String(),
+      };
+
+  Map<String, dynamic> toUpdateJson() => {
         "amount": amount,
         "payment_method": paymentMethod,
         "payment_date": paymentDate.toIso8601String(),

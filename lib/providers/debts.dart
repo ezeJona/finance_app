@@ -3,16 +3,18 @@ import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
 import '../backend-api/sync_service.dart';
 import 'business.dart';
+import 'transactions.dart';
 
 final debtsProvider = StateNotifierProvider<DebtsNotifier, AsyncValue<List<DebtRes>>>((ref) {
   final business = ref.watch(businessProvider);
-  return DebtsNotifier(business?.id);
+  return DebtsNotifier(ref, business?.id);
 });
 
 class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
+  final Ref ref;
   final int? businessId;
 
-  DebtsNotifier(this.businessId) : super(const AsyncValue.loading()) {
+  DebtsNotifier(this.ref, this.businessId) : super(const AsyncValue.loading()) {
     if (businessId != null) {
       _loadInitialData();
     } else {
@@ -60,28 +62,69 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
          SyncService.cacheDebts(businessId!, state.value!);
       });
       
-      // Si estamos online, el refresh asegurará consistencia, si estamos offline, 
-      // el objeto optimista ya está en el estado.
-      fetchDebts(); 
+      await fetchDebts(); 
+      _invalidateRelatedProviders();
     } catch (e) {
-      // Si falla, el refresh intentará recuperar el estado consistente
       fetchDebts();
+      rethrow;
+    }
+  }
+
+  Future<void> updateDebt(String id, CreateDebtReq req) async {
+    try {
+      await ApiService.updateDebt(id, req);
+      await fetchDebts();
+      _invalidateRelatedProviders();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteDebt(String id) async {
+    try {
+      await ApiService.deleteDebt(id);
+      await fetchDebts();
+      _invalidateRelatedProviders();
+    } catch (e) {
       rethrow;
     }
   }
 
   Future<void> addPayment(CreateDebtPaymentReq req) async {
     try {
-      final payment = await ApiService.createDebtPayment(req);
-      
-      // Para pagos es más complejo actualizar el saldo optimista aquí, 
-      // así que forzamos un fetch que traerá los datos del cache (actualizados si estamos offline) 
-      // o de la red.
-      
+      await ApiService.createDebtPayment(req);
       await fetchDebts();
+      _invalidateRelatedProviders();
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<void> updatePayment(String id, CreateDebtPaymentReq req) async {
+    try {
+      await ApiService.updateDebtPayment(id, req);
+      await fetchDebts();
+      _invalidateRelatedProviders();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deletePayment(String id) async {
+    try {
+      await ApiService.deleteDebtPayment(id);
+      await fetchDebts();
+      _invalidateRelatedProviders();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  void _invalidateRelatedProviders() {
+    ref.invalidate(transactionsProvider);
+    ref.invalidate(historicTransactionsProvider);
+    // Si existiera balanceProvider, también lo invalidamos. 
+    // Como historicTransactionsProvider es la base del balance en la UI, invalidarlo es clave.
   }
 }
 
