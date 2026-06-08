@@ -354,7 +354,7 @@ class ApiService {
           .eq('id', id)
           .select();
       
-      if (response.isEmpty) throw Exception('Error al actualizar abono: 0 filas devueltas. ID: $id');
+      if (response.isEmpty) throw Exception('Error al actualizar abono: 0 filas devueltas');
       return DebtPaymentRes.fromJson(response.first);
     } catch (e) {
       throw Exception(e.toString());
@@ -375,7 +375,7 @@ class ApiService {
           .from('debt_payments')
           .select()
           .eq('debt_id', debtId)
-          .order('payment_date', ascending: false);
+          .order('created_at', ascending: false); // Ordenamos por fecha de registro (el último creado arriba)
       return response.map((json) => DebtPaymentRes.fromJson(json)).toList();
     } catch (e) {
       throw Exception(e.toString());

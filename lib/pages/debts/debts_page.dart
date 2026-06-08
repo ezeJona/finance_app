@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/business.dart';
 import '../../providers/debts.dart';
+import '../../providers/transactions.dart';
 import '../../backend-api/dtos.dart';
 import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
@@ -620,10 +621,9 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
 class _DebtPaymentForm extends ConsumerStatefulWidget {
   final DebtRes debt;
   final String currency;
-  final DebtPaymentRes? payment;
   final VoidCallback? onPaymentAdded;
 
-  const _DebtPaymentForm({required this.debt, required this.currency, this.payment, this.onPaymentAdded});
+  const _DebtPaymentForm({required this.debt, required this.currency, this.onPaymentAdded});
 
   @override
   ConsumerState<_DebtPaymentForm> createState() => _DebtPaymentFormState();
@@ -638,9 +638,7 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
   void initState() {
     super.initState();
     _amountController = TextEditingController(
-      text: widget.payment != null 
-        ? widget.payment!.amount.toString().replaceAll('.0', '')
-        : widget.debt.remainingAmount.toString().replaceAll('.0', '')
+      text: widget.debt.remainingAmount.toString().replaceAll('.0', '')
     );
   }
 
@@ -664,11 +662,7 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
 
       final online = await SyncService.isOnline();
       
-      if (widget.payment == null) {
-        await ref.read(debtsProvider.notifier).addPayment(req);
-      } else {
-        await ref.read(debtsProvider.notifier).updatePayment(widget.payment!.id, req);
-      }
+      await ref.read(debtsProvider.notifier).addPayment(req);
 
       if (widget.onPaymentAdded != null) widget.onPaymentAdded!();
 
@@ -700,10 +694,7 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
         );
     final String symbol = widget.currency == 'USD' ? '\$ ' : 'C\$ ';
 
-    // Si estamos editando un pago, el "máximo" disponible es saldo actual + monto del pago que estamos editando
-    final double maxAllowed = widget.payment == null 
-        ? liveDebt.remainingAmount 
-        : liveDebt.remainingAmount + widget.payment!.amount;
+    final double maxAllowed = liveDebt.remainingAmount;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -718,9 +709,9 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              widget.payment == null ? 'REGISTRAR ABONO' : 'EDITAR ABONO',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DebtsPage.darkNavy),
+            const Text(
+              'REGISTRAR ABONO',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DebtsPage.darkNavy),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -761,9 +752,9 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        widget.payment == null ? 'REALIZAR PAGO' : 'GUARDAR CAMBIOS',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    : const Text(
+                        'REALIZAR PAGO',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
               ),
             ),
@@ -850,62 +841,41 @@ class _DebtDetailsModal extends ConsumerWidget {
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
             child: paymentsAsync.when(
-              data: (payments) => payments.isEmpty
-                  ? const Center(child: Text('No hay abonos registrados'))
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: payments.length,
-                      itemBuilder: (context, index) {
-                        final payment = payments[index];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.check_circle_outline, color: DebtsPage.incomeGreen),
-                          title: Text(formatter.format(payment.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(payment.paymentDate)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 20, color: DebtsPage.textGray),
-                                onPressed: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25.0))),
-                                    builder: (context) => _DebtPaymentForm(
-                                      debt: liveDebt, 
-                                      currency: currency,
-                                      payment: payment,
-                                      onPaymentAdded: () => ref.invalidate(debtPaymentsProvider(liveDebt.id)),
-                                    ),
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 20, color: DebtsPage.expenseRed),
-                                onPressed: () async {
-                                  final confirmed = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('¿Eliminar abono?'),
-                                      content: const Text('Este abono se restará de la deuda y se eliminará la transacción asociada.'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCELAR')),
-                                        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('ELIMINAR', style: TextStyle(color: DebtsPage.expenseRed))),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirmed == true) {
-                                    await ref.read(debtsProvider.notifier).deletePayment(payment.id);
-                                    ref.invalidate(debtPaymentsProvider(liveDebt.id));
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+              data: (payments) {
+                if (payments.isEmpty) return const Center(child: Text('No hay abonos registrados'));
+                
+                // Asegurar orden descendente por fecha (el más reciente primero)
+                final sortedPayments = List<DebtPaymentRes>.from(payments)
+                  ..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: sortedPayments.length,
+                  itemBuilder: (context, index) {
+                    final payment = sortedPayments[index];
+                    final bool isLatest = index == 0;
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        isLatest ? Icons.check_circle_outline : Icons.history, 
+                        color: isLatest ? DebtsPage.incomeGreen : DebtsPage.textGray.withOpacity(0.5)
+                      ),
+                      title: Text(
+                        formatter.format(payment.amount), 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isLatest ? Colors.black : DebtsPage.textGray
+                        )
+                      ),
+                      subtitle: Text(
+                        DateFormat('dd/MM/yyyy HH:mm').format(payment.paymentDate),
+                        style: TextStyle(fontSize: 12, color: DebtsPage.textGray.withOpacity(0.7)),
+                      ),
+                    );
+                  },
+                );
+              },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, st) => Text('Error: $e'),
             ),
@@ -923,7 +893,12 @@ class _DebtDetailsModal extends ConsumerWidget {
                     builder: (context) => _DebtPaymentForm(
                       debt: liveDebt, 
                       currency: currency,
-                      onPaymentAdded: () => ref.invalidate(debtPaymentsProvider(liveDebt.id)),
+                      onPaymentAdded: () {
+                        ref.invalidate(debtPaymentsProvider(liveDebt.id));
+                        ref.invalidate(debtsProvider);
+                        ref.invalidate(transactionsProvider);
+                        ref.invalidate(historicTransactionsProvider);
+                      },
                     ),
                   );
                 },

@@ -123,8 +123,8 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
   void _invalidateRelatedProviders() {
     ref.invalidate(transactionsProvider);
     ref.invalidate(historicTransactionsProvider);
-    // Si existiera balanceProvider, también lo invalidamos. 
-    // Como historicTransactionsProvider es la base del balance en la UI, invalidarlo es clave.
+    // Invalida balanceProvider si existe en el futuro o si se usa el alias
+    // ref.invalidate(balanceProvider);
   }
 }
 
