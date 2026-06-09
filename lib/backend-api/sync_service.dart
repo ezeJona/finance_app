@@ -9,6 +9,8 @@ class SyncService {
   static final _syncBox = Hive.box('sync_queue');
   static final _txBox = Hive.box('transactions_cache');
   static final _debtsBox = Hive.box('debts_cache');
+  static final _categoriesBox = Hive.box('categories_cache');
+  static final _productsBox = Hive.box('products_cache');
 
   static Future<bool> isOnline() async {
     final List<ConnectivityResult> connectivityResult = await Connectivity().checkConnectivity();
@@ -54,6 +56,20 @@ class SyncService {
           case 'delete_transaction':
             await ApiService.deleteTransaction(payload['id']);
             break;
+          case 'create_product':
+            await ApiService.createProduct(CreateProductReq.fromJson(payload));
+            break;
+          case 'create_category':
+            await ApiService.createProductCategory(CreateCategoryReq.fromJson(payload));
+            break;
+          case 'update_product':
+            final id = payload['id'];
+            final req = CreateProductReq.fromJson(payload);
+            await ApiService.updateProduct(id, req);
+            break;
+          case 'soft_delete_product':
+            await ApiService.softDeleteProduct(payload['id']);
+            break;
         }
         await _syncBox.delete(key);
       } catch (e) {
@@ -84,5 +100,27 @@ class SyncService {
     final data = _debtsBox.get(businessId);
     if (data == null) return [];
     return (data as List).map((json) => DebtRes.fromJson(Map<String, dynamic>.from(json))).toList();
+  }
+
+  static Future<void> cacheCategories(int businessId, List<ProductCategoryRes> categories) async {
+    final data = categories.map((c) => c.toJson()).toList();
+    await _categoriesBox.put(businessId, data);
+  }
+
+  static List<ProductCategoryRes> getCachedCategories(int businessId) {
+    final data = _categoriesBox.get(businessId);
+    if (data == null) return [];
+    return (data as List).map((json) => ProductCategoryRes.fromJson(Map<String, dynamic>.from(json))).toList();
+  }
+
+  static Future<void> cacheProducts(int businessId, List<ProductRes> products) async {
+    final data = products.map((p) => p.toJson()).toList();
+    await _productsBox.put(businessId, data);
+  }
+
+  static List<ProductRes> getCachedProducts(int businessId) {
+    final data = _productsBox.get(businessId);
+    if (data == null) return [];
+    return (data as List).map((json) => ProductRes.fromJson(Map<String, dynamic>.from(json))).toList();
   }
 }

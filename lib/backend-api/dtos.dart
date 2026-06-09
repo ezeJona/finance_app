@@ -667,3 +667,203 @@ class CreateTransactionReq {
       };
 }
 
+class ProductCategoryRes {
+  ProductCategoryRes({
+    required this.id,
+    required this.businessId,
+    required this.name,
+    required this.createdAt,
+  });
+
+  int id;
+  int businessId;
+  String name;
+  DateTime createdAt;
+
+  factory ProductCategoryRes.fromJson(Map<String, dynamic> json) => ProductCategoryRes(
+    id: json["id"],
+    businessId: json["business_id"],
+    name: json["name"],
+    createdAt: DateTime.parse(json["created_at"]),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "business_id": businessId,
+    "name": name,
+    "created_at": createdAt.toIso8601String(),
+  };
+}
+
+class ProductRes {
+  ProductRes({
+    required this.id,
+    required this.businessId,
+    this.categoryId,
+    required this.name,
+    this.description,
+    required this.costPrice,
+    required this.salePrice,
+    required this.stock,
+    required this.minStock,
+    this.imageUrl,
+    required this.createdAt,
+    this.deletedAt,
+  });
+
+  String id;
+  int businessId;
+  int? categoryId;
+  String name;
+  String? description;
+  double costPrice;
+  double salePrice;
+  double stock;
+  double minStock;
+  String? imageUrl;
+  DateTime createdAt;
+  DateTime? deletedAt;
+
+  factory ProductRes.fromJson(Map<String, dynamic> json) => ProductRes(
+    id: json["id"],
+    businessId: json["business_id"],
+    categoryId: json["category_id"],
+    name: json["name"],
+    description: json["description"],
+    costPrice: (json["cost_price"] as num).toDouble(),
+    salePrice: (json["sale_price"] as num).toDouble(),
+    stock: (json["stock"] as num).toDouble(),
+    minStock: (json["min_stock"] as num).toDouble(),
+    imageUrl: json["image_url"],
+    createdAt: DateTime.parse(json["created_at"]),
+    deletedAt: json["deleted_at"] == null ? null : DateTime.parse(json["deleted_at"]),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "business_id": businessId,
+    "category_id": categoryId,
+    "name": name,
+    "description": description,
+    "cost_price": costPrice,
+    "sale_price": salePrice,
+    "stock": stock,
+    "min_stock": minStock,
+    "image_url": imageUrl,
+    "created_at": createdAt.toIso8601String(),
+    "deleted_at": deletedAt?.toIso8601String(),
+  };
+}
+
+class TransactionItemRes {
+  TransactionItemRes({
+    required this.id,
+    this.transactionId,
+    this.debtId,
+    required this.productId,
+    required this.quantity,
+    required this.unitCost,
+    required this.unitPrice,
+    required this.subtotal,
+  });
+
+  String id;
+  String? transactionId;
+  String? debtId;
+  String productId;
+  double quantity;
+  double unitCost;
+  double unitPrice;
+  double subtotal;
+
+  factory TransactionItemRes.fromJson(Map<String, dynamic> json) => TransactionItemRes(
+    id: json["id"],
+    transactionId: json["transaction_id"],
+    debtId: json["debt_id"],
+    productId: json["product_id"],
+    quantity: (json["quantity"] as num).toDouble(),
+    unitCost: (json["unit_cost"] as num).toDouble(),
+    unitPrice: (json["unit_price"] as num).toDouble(),
+    subtotal: (json["subtotal"] as num).toDouble(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "transaction_id": transactionId,
+    "debt_id": debtId,
+    "product_id": productId,
+    "quantity": quantity,
+    "unit_cost": unitCost,
+    "unit_price": unitPrice,
+    "subtotal": subtotal,
+  };
+}
+
+class CreateProductReq {
+  CreateProductReq({
+    required this.businessId,
+    this.categoryId,
+    required this.name,
+    this.description,
+    required this.costPrice,
+    required this.salePrice,
+    required this.stock,
+    required this.minStock,
+    this.imageUrl,
+  });
+
+  int businessId;
+  int? categoryId;
+  String name;
+  String? description;
+  double costPrice;
+  double salePrice;
+  double stock;
+  double minStock;
+  String? imageUrl;
+
+  factory CreateProductReq.fromJson(Map<String, dynamic> json) => CreateProductReq(
+    businessId: json["business_id"],
+    categoryId: json["category_id"],
+    name: json["name"],
+    description: json["description"],
+    costPrice: (json["cost_price"] as num).toDouble(),
+    salePrice: (json["sale_price"] as num).toDouble(),
+    stock: (json["stock"] as num).toDouble(),
+    minStock: (json["min_stock"] as num).toDouble(),
+    imageUrl: json["image_url"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "business_id": businessId,
+    "category_id": categoryId,
+    "name": name,
+    "description": description,
+    "cost_price": costPrice,
+    "sale_price": salePrice,
+    "stock": stock,
+    "min_stock": minStock,
+    "image_url": imageUrl,
+  };
+}
+
+class CreateCategoryReq {
+  CreateCategoryReq({
+    required this.businessId,
+    required this.name,
+  });
+
+  int businessId;
+  String name;
+
+  factory CreateCategoryReq.fromJson(Map<String, dynamic> json) => CreateCategoryReq(
+    businessId: json["business_id"],
+    name: json["name"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "business_id": businessId,
+    "name": name,
+  };
+}
+

@@ -382,6 +382,117 @@ class ApiService {
     }
   }
 
+  // --- INVENTORY METHODS ---
+
+  static Future<List<ProductCategoryRes>> getProductCategoriesByBusiness(int businessId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('product_categories')
+          .select()
+          .eq('business_id', businessId)
+          .order('name', ascending: true);
+      return response.map((json) => ProductCategoryRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch product categories: $e');
+    }
+  }
+
+  static Future<ProductCategoryRes> createProductCategory(CreateCategoryReq req) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('product_categories')
+          .insert(req.toJson())
+          .select();
+      if (response.isEmpty) throw Exception('No se pudo crear la categoría');
+      return ProductCategoryRes.fromJson(response.first);
+    } catch (e) {
+      throw Exception('Failed to create product category: $e');
+    }
+  }
+
+  static Future<List<ProductRes>> getProductsByBusiness(int businessId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('products')
+          .select()
+          .eq('business_id', businessId)
+          .isFilter('deleted_at', null)
+          .order('name', ascending: true);
+      return response.map((json) => ProductRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch products: $e');
+    }
+  }
+
+  static Future<ProductRes> createProduct(CreateProductReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      final tempId = const Uuid().v4();
+      final optimisticProduct = ProductRes(
+        id: tempId,
+        businessId: req.businessId,
+        categoryId: req.categoryId,
+        name: req.name,
+        description: req.description,
+        costPrice: req.costPrice,
+        salePrice: req.salePrice,
+        stock: req.stock,
+        minStock: req.minStock,
+        imageUrl: req.imageUrl,
+        createdAt: DateTime.now(),
+      );
+      await SyncService.queueAction('create_product', req.toJson());
+      return optimisticProduct;
+    }
+    try {
+      final List<dynamic> response = await _supabase
+          .from('products')
+          .insert(req.toJson())
+          .select();
+      if (response.isEmpty) throw Exception('No se pudo crear el producto');
+      return ProductRes.fromJson(response.first);
+    } catch (e) {
+      await SyncService.queueAction('create_product', req.toJson());
+      rethrow;
+    }
+  }
+
+  static Future<ProductRes> updateProduct(String id, CreateProductReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      await SyncService.queueAction('update_product', {'id': id, ...req.toJson()});
+      // This is slightly tricky for optimistic updates without a full local DB, 
+      // but we'll follow the pattern.
+      throw Exception('Update not supported offline yet in this simplified implementation');
+    }
+    try {
+      final List<dynamic> response = await _supabase
+          .from('products')
+          .update(req.toJson())
+          .eq('id', id)
+          .select();
+      if (response.isEmpty) throw Exception('No se pudo actualizar el producto');
+      return ProductRes.fromJson(response.first);
+    } catch (e) {
+      throw Exception('Failed to update product: $e');
+    }
+  }
+
+  static Future<void> softDeleteProduct(String id) async {
+    final online = await SyncService.isOnline();
+    final deletedAt = DateTime.now().toIso8601String();
+    if (!online) {
+      await SyncService.queueAction('soft_delete_product', {'id': id, 'deleted_at': deletedAt});
+      return;
+    }
+    try {
+      await _supabase.from('products').update({'deleted_at': deletedAt}).eq('id', id);
+    } catch (e) {
+      await SyncService.queueAction('soft_delete_product', {'id': id, 'deleted_at': deletedAt});
+      rethrow;
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(email: email, password: password);

@@ -12,6 +12,7 @@ import '../dashboard/balance_page.dart';
 import '../debts/debts_page.dart';
 import '../profile/profile_page.dart';
 import '../chat/chat_page.dart';
+import '../inventory/inventory_view.dart';
 import 'bottom_nav_bar.dart';
 import 'side_nav_bar.dart';
 import '../../providers/sync_provider.dart';
@@ -124,16 +125,17 @@ class HomePage extends HookConsumerWidget {
           return const BalancePage();
         case 1:
           return const DebtsPage();
+        case 2:
+          return const InventoryView();
         case 3:
           return const ChatPage(); // Asistente IA!
         case 4:
           return const ProfilePage();
         default:
-        // Pantalla de transición para el índice 2 (Reportes)
           return const Scaffold(
             body: Center(
               child: Text(
-                "Módulo Financiero en Construcción...",
+                "Módulo en Construcción...",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
               ),
             ),

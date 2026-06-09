@@ -58,9 +58,9 @@ class BottomNavBar extends StatelessWidget {
                 index: 1,
               ),
               _buildBottomItem(
-                icon: const Icon(Icons.bar_chart_outlined),
-                activeIcon: const Icon(Icons.bar_chart),
-                label: 'Reportes',
+                icon: const Icon(Icons.inventory_2_outlined),
+                activeIcon: const Icon(Icons.inventory_2),
+                label: 'Inventario',
                 index: 2,
               ),
               _buildBottomItem(

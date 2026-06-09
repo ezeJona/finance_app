@@ -63,9 +63,9 @@ class SideNavBar extends StatelessWidget {
           ),
           NavigationRailDestination(
             padding: EdgeInsets.symmetric(vertical: 12),
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: Text('Reportes'),
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: Text('Inventario'),
           ),
           NavigationRailDestination(
             padding: EdgeInsets.symmetric(vertical: 12),

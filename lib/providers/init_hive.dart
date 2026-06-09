@@ -9,5 +9,7 @@ Future<void> initHive() async {
   await Hive.openBox('businesses_cache');
   await Hive.openBox('transactions_cache');
   await Hive.openBox('debts_cache');
+  await Hive.openBox('categories_cache');
+  await Hive.openBox('products_cache');
   await Hive.openBox('sync_queue');
 }
