@@ -493,6 +493,37 @@ class ApiService {
     }
   }
 
+  // --- TRANSACTION ITEMS ---
+
+  static Future<List<TransactionItemRes>> createTransactionItems(List<Map<String, dynamic>> items) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('transaction_items')
+          .insert(items)
+          .select();
+      return response.map((json) => TransactionItemRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to create transaction items: $e');
+    }
+  }
+
+  static Future<List<TransactionItemRes>> getTransactionItems(String? transactionId, String? debtId) async {
+    try {
+      var query = _supabase.from('transaction_items').select();
+      if (transactionId != null) {
+        query = query.eq('transaction_id', transactionId);
+      } else if (debtId != null) {
+        query = query.eq('debt_id', debtId);
+      } else {
+        return [];
+      }
+      final List<dynamic> response = await query;
+      return response.map((json) => TransactionItemRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch transaction items: $e');
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(email: email, password: password);

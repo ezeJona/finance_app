@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/business.dart';
 import '../../providers/debts.dart';
 import '../../providers/transactions.dart';
+import '../../providers/sales_profit.dart';
 import '../../backend-api/dtos.dart';
 import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
@@ -278,6 +279,19 @@ class DebtsPage extends HookConsumerWidget {
               children: [
                 if (debt.description != null && debt.description!.isNotEmpty)
                   Text(debt.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
+                if (debt.description == 'Venta de productos en inventario')
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final profitAsync = ref.watch(saleProfitProvider(debt.id));
+                      return profitAsync.maybeWhen(
+                        data: (profit) => profit > 0 
+                          ? Text('Ganancia real: +${formatter.format(profit)}', 
+                              style: const TextStyle(color: incomeGreen, fontSize: 11, fontWeight: FontWeight.bold))
+                          : const SizedBox.shrink(),
+                        orElse: () => const SizedBox.shrink(),
+                      );
+                    },
+                  ),
                 if (debt.dueDate != null)
                   Text(
                     'Vence: ${DateFormat('dd/MM/yyyy').format(debt.dueDate!)}',

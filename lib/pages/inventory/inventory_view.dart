@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_drawer.dart';
 import 'product_form_page.dart';
+import 'cart_view.dart';
 import '../../providers/inventory.dart';
 import '../../backend-api/dtos.dart';
 
@@ -181,27 +182,51 @@ class InventoryView extends HookConsumerWidget {
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProductFormPage()),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (ref.watch(cartProvider).isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12, left: 20, right: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FloatingActionButton.extended(
+                  heroTag: 'cart',
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartView())),
+                  backgroundColor: InventoryView.darkNavy,
+                  elevation: 4,
+                  icon: const Icon(Icons.shopping_cart, color: Colors.white),
+                  label: Text(
+                    'VER CARRITO (${ref.watch(cartProvider).length})',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: InventoryView.incomeGreen,
-              shape: const StadiumBorder(),
-              elevation: 4,
-            ),
-            child: const Text(
-              "CREAR PRODUCTO",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProductFormPage()),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: InventoryView.incomeGreen,
+                  shape: const StadiumBorder(),
+                  elevation: 4,
+                ),
+                child: const Text(
+                  "CREAR PRODUCTO",
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -348,6 +373,19 @@ class InventoryView extends HookConsumerWidget {
               ],
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.add_shopping_cart, color: InventoryView.incomeGreen),
+            onPressed: () {
+              ref.read(cartProvider.notifier).addItem(product);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${product.name} añadido al carrito'),
+                  duration: const Duration(seconds: 1),
+                  backgroundColor: InventoryView.darkNavy,
+                ),
+              );
+            },
+          ),
           Container(
             width: 70,
             height: 70,
@@ -382,26 +420,7 @@ class InventoryView extends HookConsumerWidget {
                   ),
                 );
                 if (confirm == true) {
-                  try {
-                    await ref.read(productsProvider.notifier).deleteProduct(product.id);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Producto eliminado correctamente'),
-                          backgroundColor: InventoryView.incomeGreen,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error al eliminar: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
+                  ref.read(productsProvider.notifier).deleteProduct(product.id);
                 }
               }
             },

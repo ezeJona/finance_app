@@ -1,6 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../backend-api/inventory_repository.dart';
 import '../backend-api/dtos.dart';
+import '../models/cart_item.dart';
 import 'business.dart';
 
 final productCategoriesProvider =
@@ -78,6 +79,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data([newProduct, ...list]);
       });
+      ref.invalidate(totalArticlesProvider);
     } catch (e) {
       rethrow;
     }
@@ -89,6 +91,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.map((p) => p.id == id ? updatedProduct : p).toList());
       });
+      ref.invalidate(totalArticlesProvider);
     } catch (e) {
       rethrow;
     }
@@ -101,6 +104,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.where((p) => p.id != id).toList());
       });
+      ref.invalidate(totalArticlesProvider);
     } catch (e) {
       rethrow;
     }
@@ -129,3 +133,48 @@ final filteredProductsProvider = Provider<List<ProductRes>>((ref) {
     orElse: () => [],
   );
 });
+
+final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
+  return CartNotifier();
+});
+
+class CartNotifier extends StateNotifier<List<CartItem>> {
+  CartNotifier() : super([]);
+
+  void addItem(ProductRes product) {
+    final index = state.indexWhere((item) => item.product.id == product.id);
+    if (index != -1) {
+      state = [
+        for (int i = 0; i < state.length; i++)
+          if (i == index)
+            CartItem(product: state[i].product, quantity: state[i].quantity + 1)
+          else
+            state[i]
+      ];
+    } else {
+      state = [...state, CartItem(product: product, quantity: 1)];
+    }
+  }
+
+  void removeItem(String productId) {
+    state = state.where((item) => item.product.id != productId).toList();
+  }
+
+  void updateQuantity(String productId, int quantity) {
+    if (quantity <= 0) {
+      removeItem(productId);
+      return;
+    }
+    state = [
+      for (final item in state)
+        if (item.product.id == productId)
+          CartItem(product: item.product, quantity: quantity)
+        else
+          item
+    ];
+  }
+
+  void clear() {
+    state = [];
+  }
+}

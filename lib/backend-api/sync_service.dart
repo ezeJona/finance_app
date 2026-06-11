@@ -67,6 +67,22 @@ class SyncService {
             final req = CreateProductReq.fromJson(payload);
             await ApiService.updateProduct(id, req);
             break;
+          case 'create_transaction_items':
+            final items = (payload['items'] as List).cast<Map<String, dynamic>>();
+            await ApiService.createTransactionItems(items);
+            break;
+          case 'update_product_stock':
+            final id = payload['id'];
+            final stock = payload['stock'];
+            await ApiService.updateProduct(payload['id'], CreateProductReq(
+              businessId: payload['business_id'],
+              name: payload['name'],
+              costPrice: payload['cost_price'],
+              salePrice: payload['sale_price'],
+              stock: stock,
+              minStock: payload['min_stock'],
+            ));
+            break;
           case 'soft_delete_product':
             await ApiService.softDeleteProduct(payload['id']);
             break;

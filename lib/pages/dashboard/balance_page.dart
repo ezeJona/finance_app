@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/business.dart';
 import '../../providers/transactions.dart';
 import '../../providers/transaction_filter.dart';
+import '../../providers/sales_profit.dart';
 import '../../backend-api/api_service.dart';
 import '../../backend-api/dtos.dart';
 import '../../backend-api/sync_service.dart';
@@ -383,6 +384,19 @@ class BalancePage extends HookConsumerWidget {
                     '${tx.paymentMethod} • ${DateFormat('dd MMM').format(tx.transactionDate)}', 
                     style: TextStyle(color: textGray, fontSize: 12)
                   ),
+                  if (tx.description == 'Venta de productos en inventario')
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final profitAsync = ref.watch(saleProfitProvider(tx.id));
+                        return profitAsync.maybeWhen(
+                          data: (profit) => profit > 0 
+                            ? Text('Ganancia real: +${currencyFormatter.format(profit)}', 
+                                style: const TextStyle(color: incomeGreen, fontSize: 11, fontWeight: FontWeight.bold))
+                            : const SizedBox.shrink(),
+                          orElse: () => const SizedBox.shrink(),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),

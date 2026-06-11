@@ -753,6 +753,36 @@ class ProductRes {
     "created_at": createdAt.toIso8601String(),
     "deleted_at": deletedAt?.toIso8601String(),
   };
+
+  ProductRes copyWith({
+    String? id,
+    int? businessId,
+    int? categoryId,
+    String? name,
+    String? description,
+    double? costPrice,
+    double? salePrice,
+    double? stock,
+    double? minStock,
+    String? imageUrl,
+    DateTime? createdAt,
+    DateTime? deletedAt,
+  }) {
+    return ProductRes(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      categoryId: categoryId ?? this.categoryId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      costPrice: costPrice ?? this.costPrice,
+      salePrice: salePrice ?? this.salePrice,
+      stock: stock ?? this.stock,
+      minStock: minStock ?? this.minStock,
+      imageUrl: imageUrl ?? this.imageUrl,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
 }
 
 class TransactionItemRes {
