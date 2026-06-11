@@ -1,15 +1,12 @@
+import 'package:uuid/uuid.dart';
 import 'api_service.dart';
 import 'dtos.dart';
 import 'sync_service.dart';
 
 class InventoryRepository {
   static Future<List<ProductCategoryRes>> getCategories(int businessId) async {
-    // 1. Get from cache first
     final cached = SyncService.getCachedCategories(businessId);
-    
-    // 2. Fetch from remote in background (or foreground if cache empty)
     _fetchAndCacheCategories(businessId);
-    
     return cached;
   }
 
@@ -24,9 +21,21 @@ class InventoryRepository {
 
   static Future<ProductCategoryRes> createCategory(int businessId, String name) async {
     final req = CreateCategoryReq(businessId: businessId, name: name);
-    final res = await ApiService.createProductCategory(req);
+    final isOnline = await SyncService.isOnline();
+    ProductCategoryRes res;
+
+    if (isOnline) {
+      res = await ApiService.createProductCategory(req);
+    } else {
+      res = ProductCategoryRes(
+        id: -1, // Temporary ID for local use
+        businessId: businessId,
+        name: name,
+        createdAt: DateTime.now(),
+      );
+      await SyncService.queueAction('create_category', req.toJson());
+    }
     
-    // Refresh cache
     final current = SyncService.getCachedCategories(businessId);
     await SyncService.cacheCategories(businessId, [...current, res]);
     
@@ -49,19 +58,59 @@ class InventoryRepository {
   }
 
   static Future<ProductRes> createProduct(CreateProductReq req) async {
-    final res = await ApiService.createProduct(req);
+    final isOnline = await SyncService.isOnline();
+    ProductRes res;
+
+    if (isOnline) {
+      res = await ApiService.createProduct(req);
+    } else {
+      res = ProductRes(
+        id: const Uuid().v4(),
+        businessId: req.businessId,
+        categoryId: req.categoryId,
+        name: req.name,
+        description: req.description,
+        costPrice: req.costPrice,
+        salePrice: req.salePrice,
+        stock: req.stock,
+        minStock: req.minStock,
+        imageUrl: req.imageUrl,
+        createdAt: DateTime.now(),
+      );
+      await SyncService.queueAction('create_product', req.toJson());
+    }
     
-    // Refresh cache
     final current = SyncService.getCachedProducts(req.businessId);
-    await SyncService.cacheProducts(req.businessId, [...current, res]);
+    await SyncService.cacheProducts(req.businessId, [res, ...current]);
     
     return res;
   }
 
   static Future<ProductRes> updateProduct(String productId, CreateProductReq req) async {
-    final res = await ApiService.updateProduct(productId, req);
+    final isOnline = await SyncService.isOnline();
+    ProductRes res;
+
+    if (isOnline) {
+      res = await ApiService.updateProduct(productId, req);
+    } else {
+      res = ProductRes(
+        id: productId,
+        businessId: req.businessId,
+        categoryId: req.categoryId,
+        name: req.name,
+        description: req.description,
+        costPrice: req.costPrice,
+        salePrice: req.salePrice,
+        stock: req.stock,
+        minStock: req.minStock,
+        imageUrl: req.imageUrl,
+        createdAt: DateTime.now(), // Fallback, would be better to keep original
+      );
+      var payload = req.toJson();
+      payload['id'] = productId;
+      await SyncService.queueAction('update_product', payload);
+    }
     
-    // Update cache
     final current = SyncService.getCachedProducts(req.businessId);
     final index = current.indexWhere((p) => p.id == productId);
     if (index != -1) {
@@ -73,9 +122,13 @@ class InventoryRepository {
   }
 
   static Future<void> softDeleteProduct(int businessId, String productId) async {
-    await ApiService.softDeleteProduct(productId);
+    final isOnline = await SyncService.isOnline();
+    if (isOnline) {
+      await ApiService.softDeleteProduct(productId);
+    } else {
+      await SyncService.queueAction('soft_delete_product', {'id': productId});
+    }
     
-    // Update cache
     final current = SyncService.getCachedProducts(businessId);
     final index = current.indexWhere((p) => p.id == productId);
     if (index != -1) {

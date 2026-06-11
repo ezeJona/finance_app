@@ -245,7 +245,7 @@ class ProductFormPage extends HookConsumerWidget {
                   child: isLoading.value
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                          product == null ? 'CREAR PRODUCTO' : 'ACTUALIZAR PRODUCTO',
+                          product == null ? 'CREAR PRODUCTO' : 'GUARDAR CAMBIOS',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                 ),

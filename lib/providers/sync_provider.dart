@@ -5,6 +5,7 @@ import '../backend-api/sync_service.dart';
 import 'connectivity.dart';
 import 'transactions.dart';
 import 'debts.dart';
+import 'inventory.dart';
 
 final syncProvider = Provider<void>((ref) {
   final connectivity = ref.watch(connectivityStatusProvider);
@@ -16,6 +17,8 @@ final syncProvider = Provider<void>((ref) {
       ref.invalidate(transactionsProvider);
       ref.invalidate(historicTransactionsProvider);
       ref.read(debtsProvider.notifier).fetchDebts();
+      ref.invalidate(productCategoriesProvider);
+      ref.invalidate(productsProvider);
     });
   }
 });

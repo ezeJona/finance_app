@@ -32,14 +32,14 @@ class ProductCategoriesNotifier extends StateNotifier<AsyncValue<List<ProductCat
   }
 
   Future<void> addCategory(String name) async {
-    if (business == null) return;
+    if (business == null) throw Exception('No hay negocio seleccionado');
     try {
       final newCategory = await InventoryRepository.createCategory(business!.id, name);
       state.whenData((list) {
         state = AsyncValue.data([...list, newCategory]);
       });
     } catch (e) {
-      // Handle error
+      rethrow;
     }
   }
 }
@@ -78,8 +78,9 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data([newProduct, ...list]);
       });
+      ref.invalidate(totalArticlesProvider);
     } catch (e) {
-      // Handle error
+      rethrow;
     }
   }
 
@@ -89,8 +90,9 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.map((p) => p.id == id ? updatedProduct : p).toList());
       });
+      ref.invalidate(totalArticlesProvider);
     } catch (e) {
-      // Handle error
+      rethrow;
     }
   }
 
@@ -101,8 +103,32 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.where((p) => p.id != id).toList());
       });
+      ref.invalidate(totalArticlesProvider);
     } catch (e) {
-      // Handle error
+      rethrow;
     }
   }
 }
+
+final totalArticlesProvider = Provider<double>((ref) {
+  final productsAsync = ref.watch(productsProvider);
+  return productsAsync.maybeWhen(
+    data: (products) => products.fold(0.0, (sum, item) => sum + item.stock),
+    orElse: () => 0.0,
+  );
+});
+
+final selectedCategoryIdProvider = StateProvider<int?>((ref) => null);
+
+final filteredProductsProvider = Provider<List<ProductRes>>((ref) {
+  final productsAsync = ref.watch(productsProvider);
+  final selectedCategoryId = ref.watch(selectedCategoryIdProvider);
+  
+  return productsAsync.maybeWhen(
+    data: (products) {
+      if (selectedCategoryId == null) return products;
+      return products.where((p) => p.categoryId == selectedCategoryId).toList();
+    },
+    orElse: () => [],
+  );
+});
