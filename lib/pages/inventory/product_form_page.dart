@@ -242,12 +242,12 @@ class ProductFormPage extends HookConsumerWidget {
                     backgroundColor: incomeGreen,
                     shape: const StadiumBorder(),
                   ),
-                  child: isLoading.value
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          product == null ? 'CREAR PRODUCTO' : 'GUARDAR CAMBIOS',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                  child: Text(
+                    isLoading.value
+                        ? 'PROCESANDO...'
+                        : (product == null ? 'CREAR PRODUCTO' : 'GUARDAR CAMBIOS'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
               const SizedBox(height: 40),

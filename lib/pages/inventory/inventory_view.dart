@@ -382,7 +382,26 @@ class InventoryView extends HookConsumerWidget {
                   ),
                 );
                 if (confirm == true) {
-                  ref.read(productsProvider.notifier).deleteProduct(product.id);
+                  try {
+                    await ref.read(productsProvider.notifier).deleteProduct(product.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Producto eliminado correctamente'),
+                          backgroundColor: InventoryView.incomeGreen,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error al eliminar: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 }
               }
             },

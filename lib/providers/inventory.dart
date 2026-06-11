@@ -78,7 +78,6 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data([newProduct, ...list]);
       });
-      ref.invalidate(totalArticlesProvider);
     } catch (e) {
       rethrow;
     }
@@ -90,7 +89,6 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.map((p) => p.id == id ? updatedProduct : p).toList());
       });
-      ref.invalidate(totalArticlesProvider);
     } catch (e) {
       rethrow;
     }
@@ -103,7 +101,6 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.where((p) => p.id != id).toList());
       });
-      ref.invalidate(totalArticlesProvider);
     } catch (e) {
       rethrow;
     }
