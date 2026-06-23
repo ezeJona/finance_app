@@ -1,6 +1,9 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'transactions.dart';
 import 'debts.dart';
+import 'business.dart';
+import '../backend-api/sync_service.dart';
+import '../backend-api/dtos.dart';
 
 enum InsightType { achievement, warning, alert }
 
@@ -18,6 +21,7 @@ class AnalyticsState {
   final Map<String, double> expensesByCategory;
   final double totalIncomeMonth;
   final double totalExpenseMonth;
+  final double netProfitMonth;
 
   AnalyticsState({
     required this.insights,
@@ -25,12 +29,20 @@ class AnalyticsState {
     required this.expensesByCategory,
     required this.totalIncomeMonth,
     required this.totalExpenseMonth,
+    required this.netProfitMonth,
   });
 }
+
+final transactionItemsProvider = Provider<List<TransactionItemRes>>((ref) {
+  final business = ref.watch(businessProvider);
+  if (business == null) return [];
+  return SyncService.getCachedTransactionItems(business.id);
+});
 
 final analyticsProvider = Provider<AnalyticsState>((ref) {
   final transactionsAsync = ref.watch(historicTransactionsProvider);
   final debtsAsync = ref.watch(debtsProvider);
+  final transactionItems = ref.watch(transactionItemsProvider);
   
   final now = DateTime.now();
   final startOfMonth = DateTime(now.year, now.month, 1);
@@ -39,29 +51,52 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
   return transactionsAsync.maybeWhen(
     data: (transactions) {
       // 1. Cálculos Base
-      final monthTransactions = transactions.where((tx) => tx.transactionDate.isAfter(startOfMonth) || tx.transactionDate.isAtSameMomentAs(startOfMonth)).toList();
+      final monthTransactions = transactions.where((tx) => 
+        tx.transactionDate.isAfter(startOfMonth.subtract(const Duration(seconds: 1)))
+      ).toList();
       
       double totalIncomeMonth = monthTransactions
           .where((tx) => tx.type == 'income')
           .fold(0.0, (sum, tx) => sum + tx.amount);
       
-      // Añadir deudas a cobrar registradas este mes como ingresos proyectados/reales para el negocio
+      // Añadir deudas a cobrar registradas este mes (Ventas al crédito)
+      double totalDebtsMonth = 0.0;
       debtsAsync.whenData((debts) {
-        totalIncomeMonth += debts
+        totalDebtsMonth = debts
             .where((d) => d.type == 'to_collect' && d.createdAt.isAfter(startOfMonth))
             .fold(0.0, (sum, d) => sum + d.totalAmount);
       });
+      totalIncomeMonth += totalDebtsMonth;
 
       final totalExpenseMonth = monthTransactions
           .where((tx) => tx.type == 'expense')
           .fold(0.0, (sum, tx) => sum + tx.amount);
 
-      // 2. Predicción del Mes
+      // 2. Cálculo de Ganancia Neta (COGS)
+      // Obtenemos los IDs de transacciones y deudas de este mes
+      final monthTxIds = monthTransactions.map((tx) => tx.id).toSet();
+      final List<String> monthDebtIds = [];
+      debtsAsync.whenData((debts) {
+        monthDebtIds.addAll(debts
+            .where((d) => d.createdAt.isAfter(startOfMonth))
+            .map((d) => d.id));
+      });
+      final monthDebtIdsSet = monthDebtIds.toSet();
+
+      // Sumamos el costo de los productos vendidos asociados a esos IDs
+      final totalCOGS = transactionItems.where((item) => 
+        (item.transactionId != null && monthTxIds.contains(item.transactionId)) ||
+        (item.debtId != null && monthDebtIdsSet.contains(item.debtId))
+      ).fold(0.0, (sum, item) => sum + (item.unitCost * item.quantity));
+
+      final netProfitMonth = totalIncomeMonth - (totalExpenseMonth + totalCOGS);
+
+      // 3. Predicción del Mes
       final dayOfMonth = now.day;
       final totalDaysInMonth = DateTime(now.year, now.month + 1, 0).day;
       final monthlyPrediction = dayOfMonth > 0 ? (totalIncomeMonth / dayOfMonth) * totalDaysInMonth : 0.0;
 
-      // 3. Insights
+      // 4. Insights
       final List<Insight> insights = [];
 
       // A) Mezcla de Gastos
@@ -122,8 +157,7 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
         ));
       }
 
-      // 4. Gastos por Categoría (Para el gráfico de pastel - todo el tiempo o este mes?)
-      // Usaremos los de este mes para que sea relevante
+      // 5. Gastos por Categoría
       final Map<String, double> monthExpensesByCat = {};
       for (var tx in monthTransactions.where((tx) => tx.type == 'expense')) {
         monthExpensesByCat[tx.category] = (monthExpensesByCat[tx.category] ?? 0.0) + tx.amount;
@@ -135,6 +169,7 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
         expensesByCategory: monthExpensesByCat,
         totalIncomeMonth: totalIncomeMonth,
         totalExpenseMonth: totalExpenseMonth,
+        netProfitMonth: netProfitMonth,
       );
     },
     orElse: () => AnalyticsState(
@@ -143,6 +178,7 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
       expensesByCategory: {},
       totalIncomeMonth: 0.0,
       totalExpenseMonth: 0.0,
+      netProfitMonth: 0.0,
     ),
   );
 });

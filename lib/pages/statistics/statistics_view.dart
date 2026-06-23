@@ -61,8 +61,14 @@ class StatisticsView extends HookConsumerWidget {
                     const SizedBox(height: 24),
                   ],
 
-                  // 2. Sección de Predicción del Mes
-                  _buildPredictionCard(analytics.monthlyPrediction, currencySymbol),
+                  // 2. Sección de Métricas Destacadas (Ganancia y Proyección)
+                  Row(
+                    children: [
+                      Expanded(child: _buildProfitCard(analytics.netProfitMonth, currencySymbol)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildSmallPredictionCard(analytics.monthlyPrediction, currencySymbol)),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // 3. Reportes Gráficos
@@ -151,49 +157,76 @@ class StatisticsView extends HookConsumerWidget {
     );
   }
 
-  Widget _buildPredictionCard(double prediction, String symbol) {
-    final formatter = NumberFormat.currency(symbol: symbol, decimalDigits: 0);
+  Widget _buildProfitCard(double profit, String symbol) {
+    final formatter = NumberFormat.currency(symbol: symbol, decimalDigits: 2);
+    final isPositive = profit >= 0;
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
+      height: 160,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            "Tu ganancia este mes",
+            style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            formatter.format(profit),
+            style: TextStyle(
+              color: isPositive ? incomeGreen : expenseRed,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            isPositive 
+                ? "¡Felicidades! Tu negocio está operando con números verdes."
+                : "⚠️ Alerta: Este mes tus costos y gastos superan tus ingresos.",
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSmallPredictionCard(double prediction, String symbol) {
+    final formatter = NumberFormat.currency(symbol: symbol, decimalDigits: 0);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 160,
+      decoration: BoxDecoration(
+        color: darkNavy,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          const Row(
             children: [
-              const Icon(Icons.online_prediction_rounded, color: primaryYellow, size: 32),
-              const SizedBox(width: 12),
-              const Text(
-                "PREDICCIÓN INTELIGENTE",
-                style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, color: darkNavy),
+              Icon(Icons.online_prediction_rounded, color: primaryYellow, size: 16),
+              SizedBox(width: 4),
+              Text(
+                "PREDICCIÓN",
+                style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
-              children: [
-                const TextSpan(text: "Si mantienes este ritmo, ganarás "),
-                TextSpan(
-                  text: formatter.format(prediction),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: incomeGreen),
-                ),
-                const TextSpan(text: " este mes."),
-              ],
-            ),
+          Text(
+            formatter.format(prediction),
+            style: const TextStyle(color: primaryYellow, fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            "Estimado al cierre del mes manteniendo el ritmo actual.",
+            style: TextStyle(fontSize: 10, color: Colors.white60),
           ),
         ],
       ),

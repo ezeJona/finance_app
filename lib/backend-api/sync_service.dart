@@ -11,6 +11,7 @@ class SyncService {
   static final _debtsBox = Hive.box('debts_cache');
   static final _categoriesBox = Hive.box('categories_cache');
   static final _productsBox = Hive.box('products_cache');
+  static final _itemsBox = Hive.box('transaction_items_cache');
 
   static Future<bool> isOnline() async {
     final List<ConnectivityResult> connectivityResult = await Connectivity().checkConnectivity();
@@ -138,5 +139,16 @@ class SyncService {
     final data = _productsBox.get(businessId);
     if (data == null) return [];
     return (data as List).map((json) => ProductRes.fromJson(Map<String, dynamic>.from(json))).toList();
+  }
+
+  static Future<void> cacheTransactionItems(int businessId, List<TransactionItemRes> items) async {
+    final data = items.map((i) => i.toJson()).toList();
+    await _itemsBox.put(businessId, data);
+  }
+
+  static List<TransactionItemRes> getCachedTransactionItems(int businessId) {
+    final data = _itemsBox.get(businessId);
+    if (data == null) return [];
+    return (data as List).map((json) => TransactionItemRes.fromJson(Map<String, dynamic>.from(json))).toList();
   }
 }

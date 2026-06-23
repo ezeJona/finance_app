@@ -73,6 +73,11 @@ class InventoryService {
       await SyncService.queueAction('create_transaction_items', {'items': itemsJson});
     }
 
+    // Update local cache for transaction items
+    final List<TransactionItemRes> itemsRes = itemsJson.map((json) => TransactionItemRes.fromJson(json)).toList();
+    final currentItems = SyncService.getCachedTransactionItems(businessId);
+    await SyncService.cacheTransactionItems(businessId, [...itemsRes, ...currentItems]);
+
     // PASO 3: Descuento de Stock en Caliente
     final currentProducts = SyncService.getCachedProducts(businessId);
     for (var item in items) {
