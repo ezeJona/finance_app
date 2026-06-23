@@ -3,6 +3,8 @@ import '../backend-api/inventory_repository.dart';
 import '../backend-api/dtos.dart';
 import '../models/cart_item.dart';
 import 'business.dart';
+import 'transactions.dart';
+import 'debts.dart';
 
 final productCategoriesProvider =
     StateNotifierProvider<ProductCategoriesNotifier, AsyncValue<List<ProductCategoryRes>>>((ref) {
@@ -117,6 +119,33 @@ final totalArticlesProvider = Provider<double>((ref) {
     data: (products) => products.fold(0.0, (sum, item) => sum + item.stock),
     orElse: () => 0.0,
   );
+});
+
+final inventoryMetricsProvider = Provider<({double totalArticles, double totalSales})>((ref) {
+  final productsAsync = ref.watch(productsProvider);
+  final transactionsAsync = ref.watch(historicTransactionsProvider);
+  final debtsAsync = ref.watch(debtsProvider);
+
+  final totalArticles = productsAsync.maybeWhen(
+    data: (products) => products.fold<double>(0.0, (sum, item) => sum + item.stock),
+    orElse: () => 0.0,
+  );
+
+  double totalSales = 0.0;
+
+  transactionsAsync.whenData((txs) {
+    totalSales += txs
+        .where((tx) => tx.type == 'income' && tx.description == 'Venta de productos en inventario')
+        .fold(0.0, (sum, tx) => sum + tx.amount);
+  });
+
+  debtsAsync.whenData((debts) {
+    totalSales += debts
+        .where((d) => d.type == 'to_collect' && d.description == 'Venta de productos en inventario')
+        .fold(0.0, (sum, d) => sum + d.totalAmount);
+  });
+
+  return (totalArticles: totalArticles, totalSales: totalSales);
 });
 
 final selectedCategoryIdProvider = StateProvider<int?>((ref) => null);

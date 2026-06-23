@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_drawer.dart';
 import 'product_form_page.dart';
@@ -19,7 +20,7 @@ class InventoryView extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
 
-    final totalArticles = ref.watch(totalArticlesProvider);
+    final metrics = ref.watch(inventoryMetricsProvider);
     final categoriesAsync = ref.watch(productCategoriesProvider);
     final selectedCategoryId = ref.watch(selectedCategoryIdProvider);
     final filteredProducts = ref.watch(filteredProductsProvider);
@@ -46,11 +47,14 @@ class InventoryView extends HookConsumerWidget {
                       child: Row(
                         children: [
                           Expanded(
-                            child: _buildSummaryCard("Total de artículos", totalArticles.toStringAsFixed(0)),
+                            child: _buildSummaryCard("Total de artículos", metrics.totalArticles.toStringAsFixed(0)),
                           ),
                           const SizedBox(width: 15),
                           Expanded(
-                            child: _buildSummaryCard("Ventas totales", "C\$ 6,000"), // Estático como se solicitó
+                            child: _buildSummaryCard(
+                              "Ventas totales",
+                              NumberFormat.currency(symbol: 'C\$ ', decimalDigits: 0).format(metrics.totalSales),
+                            ),
                           ),
                         ],
                       ),
