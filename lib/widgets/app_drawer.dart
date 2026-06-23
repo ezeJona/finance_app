@@ -8,6 +8,7 @@ import '../providers/businesses.dart';
 import '../providers/destroy_session.dart';
 import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
+import '../pages/statistics/statistics_view.dart';
 
 class AppDrawer extends HookConsumerWidget {
   const AppDrawer({super.key});
@@ -45,25 +46,6 @@ class AppDrawer extends HookConsumerWidget {
                         color: primaryYellow,
                         fontSize: 24,
                         fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                    onTap: () {
-                      // TODO: Navegar a la página de edición de perfil
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: darkNavy,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.edit_outlined,
-                          color: Colors.white, size: 14),
-                    ),
                   ),
                 ),
               ],
@@ -176,6 +158,16 @@ class AppDrawer extends HookConsumerWidget {
                       } else {
                         Navigator.pop(context);
                       }
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.analytics_outlined, color: darkNavy),
+                    title: const Text('Estadísticas',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsView()));
                     },
                   ),
                   const Divider(),

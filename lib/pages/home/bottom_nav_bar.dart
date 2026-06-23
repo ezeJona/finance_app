@@ -70,9 +70,9 @@ class BottomNavBar extends StatelessWidget {
                 index: 3,
               ),
               _buildBottomItem(
-                icon: const Icon(Icons.person_outline),
-                activeIcon: const Icon(Icons.person),
-                label: 'Perfil',
+                icon: const Icon(Icons.analytics_outlined),
+                activeIcon: const Icon(Icons.analytics),
+                label: 'Estadísticas',
                 index: 4,
               ),
             ],

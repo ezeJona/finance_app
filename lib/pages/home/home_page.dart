@@ -10,7 +10,7 @@ import '../../providers/business.dart';
 import '../../text_styles.dart';
 import '../dashboard/balance_page.dart';
 import '../debts/debts_page.dart';
-import '../profile/profile_page.dart';
+import '../statistics/statistics_view.dart';
 import '../chat/chat_page.dart';
 import '../inventory/inventory_view.dart';
 import 'bottom_nav_bar.dart';
@@ -130,7 +130,7 @@ class HomePage extends HookConsumerWidget {
         case 3:
           return const ChatPage(); // Asistente IA!
         case 4:
-          return const ProfilePage();
+          return const StatisticsView();
         default:
           return const Scaffold(
             body: Center(

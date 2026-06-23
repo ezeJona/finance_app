@@ -75,9 +75,9 @@ class SideNavBar extends StatelessWidget {
           ),
           NavigationRailDestination(
             padding: EdgeInsets.symmetric(vertical: 12),
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: Text('Perfil'),
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics),
+            label: Text('Estadísticas'),
           ),
         ],
       ),
