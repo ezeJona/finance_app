@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
+import '../backend-api/sync_service.dart';
 import 'auth_user.dart';
 import 'businesses.dart';
 

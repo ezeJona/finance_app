@@ -4,6 +4,8 @@ import '../backend-api/dtos.dart';
 import '../backend-api/sync_service.dart';
 import 'business.dart';
 import 'transactions.dart';
+import 'inventory.dart';
+import 'transaction_items.dart';
 import 'analytics.dart';
 
 final debtsProvider = StateNotifierProvider<DebtsNotifier, AsyncValue<List<DebtRes>>>((ref) {

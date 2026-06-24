@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/inventory.dart';
+import '../../providers/transaction_items.dart';
 import '../../providers/business.dart';
 import '../../providers/transactions.dart';
 import '../../providers/debts.dart';

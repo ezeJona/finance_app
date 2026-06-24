@@ -11,6 +11,8 @@ import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/app_header.dart';
 import '../../providers/analytics.dart';
+import '../../providers/inventory.dart';
+import '../../providers/transaction_items.dart';
 
 class BalancePage extends HookConsumerWidget {
   const BalancePage({super.key});
@@ -42,23 +44,31 @@ class BalancePage extends HookConsumerWidget {
               children: [
                 const AppHeader(),
                 Expanded(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                        child: historicAsync.maybeWhen(
-                          data: (transactions) => _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
-                          loading: () => historicAsync.hasValue 
-                              ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
-                              : const Center(child: LinearProgressIndicator()),
-                          error: (err, stack) => historicAsync.hasValue
-                              ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
-                              : Text('Error en saldos: $err', style: const TextStyle(color: expenseRed)),
-                          orElse: () => const Center(child: LinearProgressIndicator()),
+                  child: RefreshIndicator(
+                    color: primaryYellow,
+                    onRefresh: () async {
+                      await ref.read(transactionsProvider.notifier).refresh();
+                      ref.invalidate(historicTransactionsProvider);
+                      ref.invalidate(transactionItemsProvider);
+                    },
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                          child: historicAsync.maybeWhen(
+                            data: (transactions) => _buildMetricsCard(transactions, business?.currencyCode ?? 'NIO'),
+                            loading: () => historicAsync.hasValue 
+                                ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
+                                : const Center(child: LinearProgressIndicator()),
+                            error: (err, stack) => historicAsync.hasValue
+                                ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
+                                : Text('Error en saldos: $err', style: const TextStyle(color: expenseRed)),
+                            orElse: () => const Center(child: LinearProgressIndicator()),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: transactionsAsync.maybeWhen(
+                        transactionsAsync.maybeWhen(
                           data: (transactions) => _buildTransactionContent(context, ref, transactions, business, filter),
                           loading: () => transactionsAsync.hasValue 
                               ? _buildTransactionContent(context, ref, transactionsAsync.value!, business, filter)
@@ -68,8 +78,8 @@ class BalancePage extends HookConsumerWidget {
                               : Center(child: Text('Error al cargar transacciones: $err')),
                           orElse: () => const Center(child: CircularProgressIndicator()),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -82,14 +92,16 @@ class BalancePage extends HookConsumerWidget {
   }
 
   Widget _buildTransactionContent(BuildContext context, WidgetRef ref, List<TransactionRes> transactions, BusinessRes? business, TransactionFilterState filter) {
-    return ListView(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      children: [
-        _buildFilterBar(context, ref, filter),
-        const SizedBox(height: 16),
-        _buildTransactionList(context, ref, transactions, business?.currencyCode ?? 'NIO'),
-        const SizedBox(height: 100),
-      ],
+      child: Column(
+        children: [
+          _buildFilterBar(context, ref, filter),
+          const SizedBox(height: 16),
+          _buildTransactionList(context, ref, transactions, business?.currencyCode ?? 'NIO'),
+          const SizedBox(height: 100),
+        ],
+      ),
     );
   }
 

@@ -4,6 +4,7 @@ import 'transactions.dart';
 import 'debts.dart';
 import 'business.dart';
 import 'inventory.dart';
+import 'transaction_items.dart';
 import '../backend-api/sync_service.dart';
 import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
@@ -63,29 +64,13 @@ enum StatisticsFilter { today, thisWeek, thisMonth, custom }
 final statisticsFilterProvider = StateProvider<StatisticsFilter>((ref) => StatisticsFilter.thisMonth);
 final statisticsCustomRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
 
-final transactionItemsProvider = FutureProvider<List<TransactionItemRes>>((ref) async {
-  final business = ref.watch(businessProvider);
-  if (business == null) return [];
-  
-  final cached = SyncService.getCachedTransactionItems(business.id);
-  
-  try {
-    if (await SyncService.isOnline()) {
-      final remote = await ApiService.getAllTransactionItemsByBusiness(business.id);
-      await SyncService.cacheTransactionItems(business.id, remote);
-      return remote;
-    }
-  } catch (_) {}
-  
-  return cached;
-});
-
 final analyticsProvider = Provider<AnalyticsState>((ref) {
   final transactionsAsync = ref.watch(historicTransactionsProvider);
   final debtsAsync = ref.watch(debtsProvider);
   final transactionItemsAsync = ref.watch(transactionItemsProvider);
   final filter = ref.watch(statisticsFilterProvider);
   final customRange = ref.watch(statisticsCustomRangeProvider);
+  final business = ref.watch(businessProvider);
 
   final now = DateTime.now();
   DateTime startDate;
@@ -118,12 +103,33 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
       break;
   }
 
-  final transactions = transactionsAsync.value ?? <TransactionRes>[];
-  final debts = debtsAsync.value ?? <DebtRes>[];
-  final transactionItems = transactionItemsAsync.value ?? <TransactionItemRes>[];
+  if (business == null) {
+     return AnalyticsState(
+      insights: [],
+      totalSales: 0,
+      realProfit: 0,
+      profitMargin: 0,
+      monthlyPrediction: 0,
+      periodLabel: periodLabel,
+      filteredTransactions: [],
+      filteredDebts: [],
+      directIncome: 0,
+      directExpenses: 0,
+      inventorySales: 0,
+      cogs: 0,
+      operationalLoad: 0,
+      netCashBalance: 0,
+      expensesByCategory: {},
+    );
+  }
 
-  // Si no tenemos transacciones aún y está cargando por primera vez, devolvemos estado vacío
-  if (transactionsAsync.isLoading && transactions.isEmpty) {
+  // Priorizar datos de la red, pero usar cache si están cargando o la red falla
+  final transactions = transactionsAsync.value ?? SyncService.getCachedTransactions(business.id);
+  final debts = debtsAsync.value ?? SyncService.getCachedDebts(business.id);
+  final transactionItems = transactionItemsAsync.value ?? SyncService.getCachedTransactionItems(business.id);
+
+  // Solo devolvemos "cero" absoluto si realmente no hay nada en cache ni en red
+  if (transactions.isEmpty && debts.isEmpty && transactionItems.isEmpty && transactionsAsync.isLoading) {
      return AnalyticsState(
       insights: [],
       totalSales: 0,

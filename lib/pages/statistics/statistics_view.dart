@@ -5,6 +5,9 @@ import '../../widgets/app_header.dart';
 import '../../widgets/app_drawer.dart';
 import '../../providers/analytics.dart';
 import '../../providers/business.dart';
+import '../../providers/transactions.dart';
+import '../../providers/debts.dart';
+import '../../providers/transaction_items.dart';
 import '../../services/report_export_service.dart';
 
 class StatisticsView extends HookConsumerWidget {
@@ -31,81 +34,90 @@ class StatisticsView extends HookConsumerWidget {
         children: [
           const AppHeader(title: "Estadísticas y Análisis"),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sección 1: Selector de Rango
-                  _buildFilterSelector(context, ref, filter),
-                  const SizedBox(height: 20),
+            child: RefreshIndicator(
+              color: primaryYellow,
+              onRefresh: () async {
+                ref.invalidate(historicTransactionsProvider);
+                ref.invalidate(debtsProvider);
+                ref.invalidate(transactionItemsProvider);
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sección 1: Selector de Rango
+                    _buildFilterSelector(context, ref, filter),
+                    const SizedBox(height: 20),
 
-                  // Sección 2: El Versus de Impacto Financiero
-                  _buildFinancialImpactCard(analytics, formatter),
-                  const SizedBox(height: 24),
+                    // Sección 2: El Versus de Impacto Financiero
+                    _buildFinancialImpactCard(analytics, formatter),
+                    const SizedBox(height: 24),
 
-                  // Sección 2.5: Carga Operativa
-                  _buildOperationalLoadCard(analytics, formatter),
-                  const SizedBox(height: 24),
+                    // Sección 2.5: Carga Operativa
+                    _buildOperationalLoadCard(analytics, formatter),
+                    const SizedBox(height: 24),
 
-                  // Sección 3: Feed de Alertas e Insights
-                  if (analytics.insights.isNotEmpty) ...[
+                    // Sección 3: Feed de Alertas e Insights
+                    if (analytics.insights.isNotEmpty) ...[
+                      const Text(
+                        "Insights y Alertas",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
+                      ),
+                      const SizedBox(height: 12),
+                      ...analytics.insights.map((insight) => _buildInsightTile(insight)),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Sección 3.5: Semáforo de Gastos y Balance Neto
                     const Text(
-                      "Insights y Alertas",
+                      "Flujo de Caja y Gastos",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
                     ),
                     const SizedBox(height: 12),
-                    ...analytics.insights.map((insight) => _buildInsightTile(insight)),
+                    _buildExpenseSemaphore(analytics, formatter),
+                    const SizedBox(height: 12),
+                    _buildNetCashBalanceCard(analytics, formatter),
                     const SizedBox(height: 24),
-                  ],
 
-                  // Sección 3.5: Semáforo de Gastos y Balance Neto
-                  const Text(
-                    "Flujo de Caja y Gastos",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildExpenseSemaphore(analytics, formatter),
-                  const SizedBox(height: 12),
-                  _buildNetCashBalanceCard(analytics, formatter),
-                  const SizedBox(height: 24),
+                    // Sección 4: Panel de Predicción
+                    _buildPredictionCard(analytics.monthlyPrediction, formatter),
+                    const SizedBox(height: 24),
 
-                  // Sección 4: Panel de Predicción
-                  _buildPredictionCard(analytics.monthlyPrediction, formatter),
-                  const SizedBox(height: 24),
+                    // Sección 5: Mesa de Control
+                    const Text(
+                      "Mesa de Control (Inventario)",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildControlTable(analytics, formatter),
+                    const SizedBox(height: 30),
 
-                  // Sección 5: Mesa de Control
-                  const Text(
-                    "Mesa de Control (Inventario)",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildControlTable(analytics, formatter),
-                  const SizedBox(height: 30),
-
-                  // Botón de Exportación
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: FilledButton.icon(
-                      onPressed: () => ReportExportService.exportToExcel(
-                        transactions: analytics.filteredTransactions,
-                        debts: analytics.filteredDebts,
-                        periodName: analytics.periodLabel,
-                      ),
-                      icon: const Icon(Icons.file_download_rounded),
-                      label: const Text(
-                        "EXPORTAR REPORTE A EXCEL",
-                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: darkNavy,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    // Botón de Exportación
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: FilledButton.icon(
+                        onPressed: () => ReportExportService.exportToExcel(
+                          transactions: analytics.filteredTransactions,
+                          debts: analytics.filteredDebts,
+                          periodName: analytics.periodLabel,
+                        ),
+                        icon: const Icon(Icons.file_download_rounded),
+                        label: const Text(
+                          "EXPORTAR REPORTE A EXCEL",
+                          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: darkNavy,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ),

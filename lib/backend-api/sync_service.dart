@@ -32,6 +32,29 @@ class SyncService {
 
   // --- SYNC ENGINE ---
 
+  static Future<void> fullSync(int businessId) async {
+    if (!await isOnline()) return;
+
+    try {
+      // Fetch everything in parallel for maximum speed
+      final results = await Future.wait([
+        ApiService.getTransactionsByBusiness(businessId),
+        ApiService.fetchDebtsByBusiness(businessId),
+        ApiService.getProductCategoriesByBusiness(businessId),
+        ApiService.getProductsByBusiness(businessId),
+        ApiService.getAllTransactionItemsByBusiness(businessId),
+      ]);
+
+      await cacheTransactions(businessId, results[0] as List<TransactionRes>);
+      await cacheDebts(businessId, results[1] as List<DebtRes>);
+      await cacheCategories(businessId, results[2] as List<ProductCategoryRes>);
+      await cacheProducts(businessId, results[3] as List<ProductRes>);
+      await cacheTransactionItems(businessId, results[4] as List<TransactionItemRes>);
+    } catch (e) {
+      print("Error during fullSync: $e");
+    }
+  }
+
   static Future<void> processQueue() async {
     if (!await isOnline()) return;
 

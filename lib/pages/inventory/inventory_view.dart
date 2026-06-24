@@ -33,6 +33,7 @@ class InventoryView extends HookConsumerWidget {
           const AppHeader(),
           Expanded(
             child: RefreshIndicator(
+              color: primaryYellow,
               onRefresh: () async {
                 ref.read(productCategoriesProvider.notifier).refresh();
                 ref.read(productsProvider.notifier).refresh();
