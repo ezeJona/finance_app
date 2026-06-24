@@ -4,6 +4,7 @@ import '../backend-api/dtos.dart';
 import '../backend-api/sync_service.dart';
 import 'business.dart';
 import 'transactions.dart';
+import 'analytics.dart';
 
 final debtsProvider = StateNotifierProvider<DebtsNotifier, AsyncValue<List<DebtRes>>>((ref) {
   final business = ref.watch(businessProvider);
@@ -123,8 +124,7 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
   void _invalidateRelatedProviders() {
     ref.invalidate(transactionsProvider);
     ref.invalidate(historicTransactionsProvider);
-    // Invalida balanceProvider si existe en el futuro o si se usa el alias
-    // ref.invalidate(balanceProvider);
+    ref.invalidate(transactionItemsProvider);
   }
 }
 

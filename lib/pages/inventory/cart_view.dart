@@ -7,6 +7,7 @@ import '../../providers/transactions.dart';
 import '../../providers/debts.dart';
 import '../../services/inventory_service.dart';
 import '../../backend-api/sync_service.dart';
+import '../../providers/analytics.dart';
 
 class CartView extends HookConsumerWidget {
   const CartView({super.key});
@@ -229,6 +230,7 @@ class CartView extends HookConsumerWidget {
                     ref.invalidate(transactionsProvider);
                     ref.invalidate(historicTransactionsProvider);
                     ref.invalidate(debtsProvider);
+                    ref.invalidate(transactionItemsProvider);
 
                     if (context.mounted) {
                       Navigator.pop(context); // Close modal

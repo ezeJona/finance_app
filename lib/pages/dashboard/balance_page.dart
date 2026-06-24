@@ -10,6 +10,7 @@ import '../../backend-api/dtos.dart';
 import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/app_header.dart';
+import '../../providers/analytics.dart';
 
 class BalancePage extends HookConsumerWidget {
   const BalancePage({super.key});
@@ -570,6 +571,7 @@ class BalancePage extends HookConsumerWidget {
         await ApiService.deleteTransaction(tx.id);
         ref.invalidate(transactionsProvider);
         ref.invalidate(historicTransactionsProvider);
+        ref.invalidate(transactionItemsProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -816,6 +818,7 @@ class _TransactionFormState extends State<_TransactionForm> {
       // Refrescar para sincronizar con el backend en segundo plano
       widget.ref.read(transactionsProvider.notifier).refresh();
       widget.ref.invalidate(historicTransactionsProvider);
+      widget.ref.invalidate(transactionItemsProvider);
 
       if (mounted) {
         Navigator.pop(context);
