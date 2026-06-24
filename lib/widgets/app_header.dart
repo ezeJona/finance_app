@@ -6,7 +6,8 @@ import '../providers/connectivity.dart';
 import '../providers/sync_provider.dart';
 
 class AppHeader extends HookConsumerWidget {
-  const AppHeader({super.key});
+  final String? title;
+  const AppHeader({super.key, this.title});
 
   // Colores consistentes
   static const Color primaryYellow = Color(0xFFF1C40F);
@@ -22,12 +23,14 @@ class AppHeader extends HookConsumerWidget {
     
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     
-    // Título principal: Nombre del Negocio
-    String businessName = business?.name ?? "Cargando...";
+    // Título principal: Nombre del Negocio o el título pasado por parámetro
+    String displayTitle = title ?? business?.name ?? "Cargando...";
     
     // Subtítulo: Tipo de cuenta y nombre del usuario para contexto
     String subTitle = "";
-    if (business != null) {
+    if (title != null && business != null) {
+      subTitle = business.name;
+    } else if (business != null) {
       subTitle = "${business.businessType} • ${appUser?.firstName ?? 'Usuario'}";
     } else if (appUser != null) {
       subTitle = "${appUser.firstName} ${appUser.firstLastName}";
@@ -49,7 +52,7 @@ class AppHeader extends HookConsumerWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Row(
@@ -70,7 +73,7 @@ class AppHeader extends HookConsumerWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -100,7 +103,7 @@ class AppHeader extends HookConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      businessName,
+                      displayTitle,
                       style: const TextStyle(
                         fontSize: 19, 
                         fontWeight: FontWeight.bold, 
@@ -130,7 +133,7 @@ class AppHeader extends HookConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
         ],
       ),
     );

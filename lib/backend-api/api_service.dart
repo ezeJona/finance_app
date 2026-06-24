@@ -524,6 +524,20 @@ class ApiService {
     }
   }
 
+  static Future<List<TransactionItemRes>> getAllTransactionItemsByBusiness(int businessId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('transaction_items_view') // Assuming there is a view or we filter by business_id if column exists
+          .select()
+          .eq('business_id', businessId);
+      return response.map((json) => TransactionItemRes.fromJson(json)).toList();
+    } catch (e) {
+      // Fallback: if business_id doesn't exist in items table, we might need a join or different approach.
+      // For now, let's assume transaction_items has business_id or there's a view.
+      throw Exception('Failed to fetch transaction items: $e');
+    }
+  }
+
   static Future<User> signInUser(String email, String password) async {
     try {
       final AuthResponse response = await _supabase.auth.signInWithPassword(email: email, password: password);
