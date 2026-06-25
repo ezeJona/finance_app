@@ -152,11 +152,11 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
   ).toList();
 
   final directIncome = filteredTransactions
-      .where((tx) => tx.type == 'income' && tx.description != 'Venta de productos en inventario')
+      .where((tx) => tx.type == 'income' && (tx.description == null || !tx.description!.startsWith('Venta')))
       .fold(0.0, (sum, tx) => sum + tx.amount);
 
   final inventorySales = filteredTransactions
-      .where((tx) => tx.type == 'income' && tx.description == 'Venta de productos en inventario')
+      .where((tx) => tx.type == 'income' && (tx.description != null && tx.description!.startsWith('Venta')))
       .fold(0.0, (sum, tx) => sum + tx.amount);
 
   final directExpenses = filteredTransactions

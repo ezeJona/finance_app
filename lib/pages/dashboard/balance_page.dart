@@ -354,7 +354,7 @@ class BalancePage extends HookConsumerWidget {
     final Color color = isIncome ? incomeGreen : expenseRed;
     final String prefix = isIncome ? '+' : '-';
     final currencyFormatter = NumberFormat.currency(symbol: currency == 'USD' ? '\$ ' : 'C\$ ', decimalDigits: 2);
-    final bool isInventorySale = tx.description == 'Venta de productos en inventario';
+    final bool isInventorySale = tx.description != null && tx.description!.startsWith('Venta');
 
     return Card(
       color: Colors.white,
@@ -386,7 +386,11 @@ class BalancePage extends HookConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      tx.description ?? tx.category, 
+                      tx.debtPaymentId != null
+                          ? (tx.contactName != null && tx.contactName!.isNotEmpty && tx.contactName != 'Cliente General'
+                              ? "Abono: ${tx.contactName}"
+                              : "Abono")
+                          : (tx.description ?? tx.category),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

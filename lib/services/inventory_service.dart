@@ -18,13 +18,17 @@ class InventoryService {
     String? transactionId;
     String? debtId;
 
+    final String saleDescription = (debtContactName != null && debtContactName.isNotEmpty && debtContactName != 'Cliente General')
+        ? "Venta: $debtContactName"
+        : "Venta";
+
     // PASO 1: Registro Padre (Contado vs Crédito)
     if (!isDebt) {
       final req = CreateTransactionReq(
         businessId: businessId,
         type: 'income',
         amount: totalVenta,
-        description: 'Venta de productos en inventario',
+        description: saleDescription,
         paymentMethod: paymentMethod,
         contactName: debtContactName, // Reutilizamos el parámetro para el nombre del cliente
       );
@@ -41,7 +45,7 @@ class InventoryService {
         type: 'to_collect',
         contactName: debtContactName ?? 'Cliente General',
         totalAmount: totalVenta,
-        description: 'Venta de productos en inventario',
+        description: saleDescription,
       );
       // ApiService.createDebt handles offline by queuing and returning optimistic result
       final res = await ApiService.createDebt(req);

@@ -279,7 +279,7 @@ class DebtsPage extends HookConsumerWidget {
               children: [
                 if (debt.description != null && debt.description!.isNotEmpty)
                   Text(debt.description!, maxLines: 1, overflow: TextOverflow.ellipsis),
-                if (debt.description == 'Venta de productos en inventario')
+                if (debt.description != null && debt.description!.startsWith('Venta'))
                   Consumer(
                     builder: (context, ref, child) {
                       final profitAsync = ref.watch(saleProfitProvider(debt.id));
@@ -669,6 +669,7 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
 
     try {
       final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+      
       final req = CreateDebtPaymentReq(
         debtId: widget.debt.id,
         amount: amount,
