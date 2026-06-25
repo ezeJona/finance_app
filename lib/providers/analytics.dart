@@ -209,12 +209,17 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
     ));
   }
 
-  // Productos con stock bajo (Stock < 5)
-  final lowStockProducts = performance.where((p) => p.stock < 5).toList();
-  if (lowStockProducts.isNotEmpty) {
+  // REGLA: Quiebre de Stock (Stockout)
+  final outOfStockProducts = performance.where((p) => p.stock <= 0).toList();
+  if (outOfStockProducts.isNotEmpty) {
+    final int count = outOfStockProducts.length;
+    final String message = count == 1 
+      ? "⚠️ Alerta de Inventario: Tienes 1 producto sin existencias en bodega. Elige reabastecerlo para no perder ventas."
+      : "⚠️ Alerta de Inventario: Tienes $count productos con stock en 0. Alimenta tu inventario para reactivar tus ventas.";
+    
     insights.add(Insight(
-      title: "Stock Crítico",
-      message: "Tienes ${lowStockProducts.length} productos con menos de 5 unidades. ¡Revisa tu inventario!",
+      title: "Quiebre de Stock",
+      message: message,
       type: InsightType.warning,
     ));
   }

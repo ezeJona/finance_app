@@ -379,16 +379,36 @@ class InventoryView extends HookConsumerWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add_shopping_cart, color: InventoryView.incomeGreen),
+            icon: Icon(
+              Icons.add_shopping_cart, 
+              color: product.stock > 0 ? InventoryView.incomeGreen : Colors.grey
+            ),
             onPressed: () {
-              ref.read(cartProvider.notifier).addItem(product);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${product.name} añadido al carrito'),
-                  duration: const Duration(seconds: 1),
-                  backgroundColor: InventoryView.darkNavy,
-                ),
+              ref.read(cartProvider.notifier).addItem(
+                product, 
+                onStockError: (msg) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(msg),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               );
+              
+              if (product.stock > 0) {
+                final inCart = ref.read(cartProvider).any((item) => item.product.id == product.id);
+                if (inCart) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${product.name} añadido al carrito'),
+                      duration: const Duration(seconds: 1),
+                      backgroundColor: InventoryView.darkNavy,
+                    ),
+                  );
+                }
+              }
             },
           ),
           Container(

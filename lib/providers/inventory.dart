@@ -172,9 +172,14 @@ final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
 class CartNotifier extends StateNotifier<List<CartItem>> {
   CartNotifier() : super([]);
 
-  void addItem(ProductRes product) {
+  void addItem(ProductRes product, {required Function(String) onStockError}) {
     final index = state.indexWhere((item) => item.product.id == product.id);
     if (index != -1) {
+      final currentQty = state[index].quantity;
+      if (currentQty + 1 > product.stock) {
+        onStockError("❌ Sin existencias: No tienes stock disponible de este producto. Si tienes mercancía en bodega, edita el artículo para alimentar el stock primero.");
+        return;
+      }
       state = [
         for (int i = 0; i < state.length; i++)
           if (i == index)
@@ -183,6 +188,10 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
             state[i]
       ];
     } else {
+      if (product.stock <= 0) {
+        onStockError("❌ Sin existencias: No tienes stock disponible de este producto. Si tienes mercancía en bodega, edita el artículo para alimentar el stock primero.");
+        return;
+      }
       state = [...state, CartItem(product: product, quantity: 1)];
     }
   }
@@ -191,11 +200,21 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = state.where((item) => item.product.id != productId).toList();
   }
 
-  void updateQuantity(String productId, int quantity) {
+  void updateQuantity(String productId, int quantity, {Function(String)? onStockError}) {
     if (quantity <= 0) {
       removeItem(productId);
       return;
     }
+    
+    final itemIndex = state.indexWhere((item) => item.product.id == productId);
+    if (itemIndex != -1) {
+      final item = state[itemIndex];
+      if (quantity > item.product.stock) {
+        onStockError?.call("❌ Sin existencias: No tienes stock disponible de este producto. Si tienes mercancía en bodega, edita el artículo para alimentar el stock primero.");
+        return;
+      }
+    }
+
     state = [
       for (final item in state)
         if (item.product.id == productId)

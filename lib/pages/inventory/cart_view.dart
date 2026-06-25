@@ -88,8 +88,22 @@ class CartView extends HookConsumerWidget {
                                   ),
                                   Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                   IconButton(
-                                    icon: const Icon(Icons.add_circle_outline, size: 20, color: incomeGreen),
-                                    onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.product.id, item.quantity + 1),
+                                    icon: Icon(
+                                      Icons.add_circle_outline, 
+                                      size: 20, 
+                                      color: item.quantity < item.product.stock ? incomeGreen : Colors.grey
+                                    ),
+                                    onPressed: item.quantity < item.product.stock 
+                                      ? () => ref.read(cartProvider.notifier).updateQuantity(
+                                          item.product.id, 
+                                          item.quantity + 1,
+                                          onStockError: (msg) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text(msg), backgroundColor: expenseRed)
+                                            );
+                                          }
+                                        )
+                                      : null,
                                   ),
                                 ],
                               ),
