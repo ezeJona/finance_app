@@ -26,6 +26,7 @@ class InventoryService {
         amount: totalVenta,
         description: 'Venta de productos en inventario',
         paymentMethod: paymentMethod,
+        contactName: debtContactName, // Reutilizamos el parámetro para el nombre del cliente
       );
       // ApiService.createTransaction handles offline by queuing and returning optimistic result
       final res = await ApiService.createTransaction(req);

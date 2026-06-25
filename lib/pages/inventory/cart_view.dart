@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../models/cart_item.dart';
 import '../../providers/inventory.dart';
 import '../../providers/transaction_items.dart';
 import '../../providers/business.dart';
@@ -177,17 +179,16 @@ class CartView extends HookConsumerWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              if (isDebt) ...[
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre del Cliente',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                  ),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: isDebt ? 'Nombre del Cliente (Obligatorio)' : 'Nombre del Cliente (Opcional)',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                 ),
-                const SizedBox(height: 16),
-              ] else ...[
+              ),
+              const SizedBox(height: 16),
+              if (!isDebt) ...[
                 DropdownButtonFormField<String>(
                   value: paymentMethod,
                   decoration: InputDecoration(
@@ -214,16 +215,24 @@ class CartView extends HookConsumerWidget {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () async {
+                  if (isDebt && nameController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Por favor, ingresa el nombre del cliente para el crédito'), backgroundColor: expenseRed)
+                    );
+                    return;
+                  }
+
                   final contactName = nameController.text.isEmpty ? 'Cliente General' : nameController.text;
                   final montoRecibido = double.tryParse(controller.text) ?? total;
+                  final soldItems = ref.read(cartProvider);
 
                   try {
                     await InventoryService.processInventorySale(
                       businessId: business!.id,
-                      items: ref.read(cartProvider),
+                      items: soldItems,
                       paymentMethod: paymentMethod,
                       isDebt: isDebt,
-                      debtContactName: isDebt ? contactName : null,
+                      debtContactName: contactName,
                     );
 
                     ref.read(cartProvider.notifier).clear();
@@ -237,7 +246,15 @@ class CartView extends HookConsumerWidget {
                     if (context.mounted) {
                       Navigator.pop(context); // Close modal
                       Navigator.pop(context); // Back to inventory
-                      _showSuccessDialog(context, total, isDebt ? null : montoRecibido, currencySymbol);
+                      _showSuccessDialog(
+                        context, 
+                        total, 
+                        isDebt ? null : montoRecibido, 
+                        currencySymbol,
+                        items: soldItems,
+                        contactName: contactName,
+                        businessName: business.name,
+                      );
                     }
                   } catch (e) {
                     if (context.mounted) {
@@ -260,8 +277,17 @@ class CartView extends HookConsumerWidget {
     );
   }
 
-  void _showSuccessDialog(BuildContext context, double total, double? recibido, String symbol) {
+  void _showSuccessDialog(
+    BuildContext context, 
+    double total, 
+    double? recibido, 
+    String symbol, {
+    required List<CartItem> items,
+    required String contactName,
+    String? businessName,
+  }) {
     final double vuelto = (recibido ?? 0) - total;
+    final currencyFormatter = NumberFormat.currency(symbol: symbol, decimalDigits: 2);
 
     showDialog(
       context: context,
@@ -282,16 +308,43 @@ class CartView extends HookConsumerWidget {
               Text('$symbol${vuelto.toStringAsFixed(2)}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: incomeGreen)),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: darkNavy,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      String detail = items.map((i) => "- ${i.product.name} x${i.quantity} (${currencyFormatter.format(i.subtotal)})").join("\n");
+                      String message = "🧾 *${businessName ?? 'Mi Negocio'}* \n"
+                          "¡Gracias por tu compra! \n\n"
+                          "*Cliente:* $contactName\n"
+                          "*Detalle:* \n"
+                          "$detail\n\n"
+                          "*Total:* ${currencyFormatter.format(total)}";
+                      Share.share(message);
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 18),
+                    label: const Text('Enviar Factura', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: darkNavy,
+                      side: const BorderSide(color: Colors.grey),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
-                child: const Text('ENTENDIDO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: darkNavy,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('ENTENDIDO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

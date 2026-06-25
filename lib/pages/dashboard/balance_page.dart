@@ -857,6 +857,7 @@ class _DigitalInvoiceModal extends ConsumerWidget {
     String detail = items.map((i) => "- ${i.productName} x${i.item.quantity.toStringAsFixed(0)} (${formatter.format(i.item.subtotal)})").join("\n");
     String message = "🧾 *${business?.name ?? 'Mi Negocio'}* \n"
         "¡Gracias por tu compra! \n\n"
+        "*Cliente:* ${tx.contactName ?? 'Cliente General'}\n"
         "*Detalle:* \n"
         "$detail\n\n"
         "*Total:* ${formatter.format(tx.amount)}";
