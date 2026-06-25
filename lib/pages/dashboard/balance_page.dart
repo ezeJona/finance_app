@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/business.dart';
 import '../../providers/transactions.dart';
 import '../../providers/transaction_filter.dart';
@@ -37,7 +38,6 @@ class BalancePage extends HookConsumerWidget {
       backgroundColor: backgroundColor,
       drawer: const AppDrawer(),
       body: SafeArea(
-        top: false, // Permitir que el header amarillo suba hasta la barra de estado
         child: Stack(
           children: [
             Column(
@@ -129,7 +129,6 @@ class BalancePage extends HookConsumerWidget {
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Lado Izquierdo: Saldo Neto
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +147,6 @@ class BalancePage extends HookConsumerWidget {
                 ),
               ),
               VerticalDivider(color: Colors.grey.withOpacity(0.3), thickness: 1),
-              // Lado Derecho: Ingresos y Pagos
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 12.0),
@@ -191,7 +189,6 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  // 4. NUEVA BARRA DE FILTROS
   Widget _buildFilterBar(BuildContext context, WidgetRef ref, TransactionFilterState filter) {
     String timeLabel = "Mes actual";
     if (filter.timeRange == 'current_month') {
@@ -321,7 +318,6 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  // 5. LISTADO DE MOVIMIENTOS (Historial)
   Widget _buildTransactionList(BuildContext context, WidgetRef ref, List<TransactionRes> transactions, String currency) {
     if (transactions.isEmpty) {
       return const Padding(
@@ -338,7 +334,6 @@ class BalancePage extends HookConsumerWidget {
       );
     }
 
-    // Agrupar por fecha (simplificado para el ejemplo, asumiendo orden descendente de Supabase)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -359,116 +354,130 @@ class BalancePage extends HookConsumerWidget {
     final Color color = isIncome ? incomeGreen : expenseRed;
     final String prefix = isIncome ? '+' : '-';
     final currencyFormatter = NumberFormat.currency(symbol: currency == 'USD' ? '\$ ' : 'C\$ ', decimalDigits: 2);
+    final bool isInventorySale = tx.description == 'Venta de productos en inventario';
 
     return Card(
       color: Colors.white,
       elevation: 0.5,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+      child: InkWell(
+        onTap: isInventorySale ? () => _showDigitalInvoice(context, ref, tx, currency) : null,
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isIncome ? Icons.arrow_upward : Icons.arrow_downward, 
+                  color: color, 
+                  size: 20
+                ),
               ),
-              child: Icon(
-                isIncome ? Icons.arrow_upward : Icons.arrow_downward, 
-                color: color, 
-                size: 20
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tx.description ?? tx.category, 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${tx.paymentMethod} • ${DateFormat('dd MMM').format(tx.transactionDate)}', 
+                      style: TextStyle(color: textGray, fontSize: 12)
+                    ),
+                    if (isInventorySale)
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final profitAsync = ref.watch(saleProfitProvider(tx.id));
+                          return profitAsync.maybeWhen(
+                            data: (profit) => profit > 0 
+                              ? Text('Ganancia real: +${currencyFormatter.format(profit)}', 
+                                  style: const TextStyle(color: incomeGreen, fontSize: 11, fontWeight: FontWeight.bold))
+                              : const SizedBox.shrink(),
+                            orElse: () => const SizedBox.shrink(),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    tx.description ?? tx.category, 
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    '$prefix ${currencyFormatter.format(tx.amount)}',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${tx.paymentMethod} • ${DateFormat('dd MMM').format(tx.transactionDate)}', 
-                    style: TextStyle(color: textGray, fontSize: 12)
-                  ),
-                  if (tx.description == 'Venta de productos en inventario')
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final profitAsync = ref.watch(saleProfitProvider(tx.id));
-                        return profitAsync.maybeWhen(
-                          data: (profit) => profit > 0 
-                            ? Text('Ganancia real: +${currencyFormatter.format(profit)}', 
-                                style: const TextStyle(color: incomeGreen, fontSize: 11, fontWeight: FontWeight.bold))
-                            : const SizedBox.shrink(),
-                          orElse: () => const SizedBox.shrink(),
-                        );
-                      },
-                    ),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '$prefix ${currencyFormatter.format(tx.amount)}',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color),
-                ),
-              ],
-            ),
-            const SizedBox(width: 4),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: textGray, size: 20),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onSelected: (value) {
-                // REGLA: Si el movimiento es un abono de deuda, interceptar
-                if (tx.debtPaymentId != null) {
-                  _showDebtPaymentWarning(context);
-                  return;
-                }
-                
-                switch (value) {
-                  case 'edit':
-                    _showTransactionModal(context, ref, null, tx.type, transaction: tx);
-                    break;
-                  case 'delete':
-                    _confirmDeleteTransaction(context, ref, tx);
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit_outlined, size: 20),
-                      SizedBox(width: 8),
-                      Text('Editar movimiento'),
-                    ],
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: textGray, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onSelected: (value) {
+                  if (tx.debtPaymentId != null) {
+                    _showDebtPaymentWarning(context);
+                    return;
+                  }
+                  
+                  switch (value) {
+                    case 'edit':
+                      _showTransactionModal(context, ref, null, tx.type, transaction: tx);
+                      break;
+                    case 'delete':
+                      _confirmDeleteTransaction(context, ref, tx);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Editar movimiento'),
+                      ],
+                    ),
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline, color: expenseRed, size: 20),
-                      SizedBox(width: 8),
-                      const Text('Eliminar', style: TextStyle(color: expenseRed)),
-                    ],
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, color: expenseRed, size: 20),
+                        SizedBox(width: 8),
+                        const Text('Eliminar', style: TextStyle(color: expenseRed)),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  void _showDigitalInvoice(BuildContext context, WidgetRef ref, TransactionRes tx, String currency) {
+    final business = ref.read(businessProvider);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DigitalInvoiceModal(tx: tx, business: business, currency: currency),
     );
   }
 
@@ -490,7 +499,6 @@ class BalancePage extends HookConsumerWidget {
     );
   }
 
-  // 6. BOTONES FLOTANTES INFERIORES
   Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, BusinessRes? business) {
     return Align(
       alignment: Alignment.bottomCenter,
@@ -644,7 +652,6 @@ class _TimeRangeModal extends ConsumerWidget {
       );
     }
 
-    // Lógica de generación: Mes actual primero, luego anteriores en orden inverso.
     final List<DateTime> currentYearMonths = List.generate(now.month, (i) => DateTime(now.year, now.month - i));
     final List<DateTime> lastYearMonths = List.generate(12, (i) => DateTime(now.year - 1, 12 - i));
 
@@ -661,8 +668,6 @@ class _TimeRangeModal extends ConsumerWidget {
             children: [
               const Text("Selecciona un periodo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
-
-              // Fila de meses Año Actual
               Text("${now.year}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
               const SizedBox(height: 8),
               SingleChildScrollView(
@@ -672,8 +677,6 @@ class _TimeRangeModal extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Fila de meses Año Anterior
               Text("${now.year - 1}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray)),
               const SizedBox(height: 8),
               SingleChildScrollView(
@@ -682,16 +685,13 @@ class _TimeRangeModal extends ConsumerWidget {
                   children: lastYearMonths.map(buildMonthChip).toList(),
                 ),
               ),
-              
               const SizedBox(height: 24),
               const Divider(),
-              
               _rangeOption(ref, context, "Últimos 5 movimientos", Icons.notes, 'last_5'),
               _rangeOption(ref, context, "Hoy", Icons.calendar_today, 'today'),
               _rangeOption(ref, context, "Ayer", Icons.history, 'yesterday'),
               _rangeOption(ref, context, "Últimos 7 días", Icons.calendar_month, 'last_7'),
               _rangeOption(ref, context, "Últimos 30 días", Icons.date_range, 'last_30'),
-              
               ListTile(
                 leading: const Icon(Icons.date_range_outlined, color: BalancePage.darkNavy),
                 title: const Text("Fecha desde - hasta"),
@@ -719,7 +719,6 @@ class _TimeRangeModal extends ConsumerWidget {
                   }
                 },
               ),
-
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -745,10 +744,131 @@ class _TimeRangeModal extends ConsumerWidget {
   }
 }
 
+class _DigitalInvoiceModal extends ConsumerWidget {
+  final TransactionRes tx;
+  final BusinessRes? business;
+  final String currency;
+
+  const _DigitalInvoiceModal({required this.tx, required this.business, required this.currency});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final itemsAsync = ref.watch(transactionDetailsProvider(tx.id));
+    final currencyFormatter = NumberFormat.currency(symbol: currency == 'USD' ? '\$ ' : 'C\$ ', decimalDigits: 2);
+    
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              business?.name ?? 'Mi Negocio',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: BalancePage.darkNavy),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              DateFormat("dd/MM/yyyy HH:mm").format(tx.transactionDate),
+              style: const TextStyle(color: BalancePage.textGray, fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Cliente: ${tx.contactName ?? 'Cliente General'}",
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+            ),
+            const Divider(height: 32),
+            itemsAsync.when(
+              data: (items) => Column(
+                children: [
+                  ...items.map((item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                "${item.item.quantity.toStringAsFixed(0)} x ${currencyFormatter.format(item.item.unitPrice)}",
+                                style: const TextStyle(color: BalancePage.textGray, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          currencyFormatter.format(item.item.subtotal),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  )),
+                  const Divider(height: 32, thickness: 1.5, color: Colors.black12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("TOTAL", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(
+                        currencyFormatter.format(tx.amount),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: BalancePage.darkNavy),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _shareReceipt(items, currencyFormatter),
+                      icon: const Icon(Icons.share_rounded),
+                      label: const Text("Enviar Recibo al Cliente"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: BalancePage.darkNavy,
+                        side: const BorderSide(color: BalancePage.darkNavy),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (err, _) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text("Error al cargar detalles: $err"),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _shareReceipt(List<TransactionItemModel> items, NumberFormat formatter) {
+    String detail = items.map((i) => "- ${i.productName} x${i.item.quantity.toStringAsFixed(0)} (${formatter.format(i.item.subtotal)})").join("\n");
+    String message = "🧾 *${business?.name ?? 'Mi Negocio'}* \n"
+        "¡Gracias por tu compra! \n\n"
+        "*Detalle:* \n"
+        "$detail\n\n"
+        "*Total:* ${formatter.format(tx.amount)}";
+    
+    Share.share(message);
+  }
+}
+
 class _TransactionForm extends StatefulWidget {
   final BusinessRes business;
   final WidgetRef ref;
-  final String type; // 'income' or 'expense'
+  final String type;
   final TransactionRes? transaction;
 
   const _TransactionForm({required this.business, required this.ref, required this.type, this.transaction});
@@ -770,7 +890,6 @@ class _TransactionFormState extends State<_TransactionForm> {
   void initState() {
     super.initState();
     final tx = widget.transaction;
-    // Precargamos los datos si estamos editando
     _amountController = TextEditingController(
       text: tx != null ? tx.amount.toString().replaceAll('.0', '') : ''
     );
@@ -802,9 +921,7 @@ class _TransactionFormState extends State<_TransactionForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
-
     try {
       final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
       final req = CreateTransactionReq(
@@ -818,16 +935,13 @@ class _TransactionFormState extends State<_TransactionForm> {
       );
 
       final online = await SyncService.isOnline();
-
       if (widget.transaction == null) {
         final newTx = await ApiService.createTransaction(req);
-        // Actualización optimista inmediata en el provider
         widget.ref.read(transactionsProvider.notifier).addOptimistic(newTx);
       } else {
         await ApiService.updateTransaction(widget.transaction!.id, req);
       }
 
-      // Refrescar para sincronizar con el backend en segundo plano
       widget.ref.read(transactionsProvider.notifier).refresh();
       widget.ref.invalidate(historicTransactionsProvider);
       widget.ref.invalidate(transactionItemsProvider);
@@ -964,7 +1078,6 @@ class _TransactionFormState extends State<_TransactionForm> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 32),
               SizedBox(
                 height: 56,
