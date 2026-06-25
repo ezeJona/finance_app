@@ -12,6 +12,7 @@ class SyncService {
   static final _categoriesBox = Hive.box('categories_cache');
   static final _productsBox = Hive.box('products_cache');
   static final _itemsBox = Hive.box('transaction_items_cache');
+  static final _analyticsBox = Hive.box('analytics_cache');
 
   static Future<bool> isOnline() async {
     final List<ConnectivityResult> connectivityResult = await Connectivity().checkConnectivity();
@@ -36,6 +37,10 @@ class SyncService {
     if (!await isOnline()) return;
 
     try {
+      final now = DateTime.now();
+      final start = DateTime(now.year - 1, now.month, now.day);
+      final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
       // Fetch everything in parallel for maximum speed
       final results = await Future.wait([
         ApiService.getTransactionsByBusiness(businessId),
@@ -43,6 +48,8 @@ class SyncService {
         ApiService.getProductCategoriesByBusiness(businessId),
         ApiService.getProductsByBusiness(businessId),
         ApiService.getAllTransactionItemsByBusiness(businessId),
+        ApiService.getExecutiveFinancials(businessId, start, end),
+        ApiService.getInventoryPerformance(businessId),
       ]);
 
       await cacheTransactions(businessId, results[0] as List<TransactionRes>);
@@ -50,6 +57,8 @@ class SyncService {
       await cacheCategories(businessId, results[2] as List<ProductCategoryRes>);
       await cacheProducts(businessId, results[3] as List<ProductRes>);
       await cacheTransactionItems(businessId, results[4] as List<TransactionItemRes>);
+      await cacheExecutiveFinancials(businessId, results[5] as List<ExecutiveFinancialsRes>);
+      await cacheInventoryPerformance(businessId, results[6] as List<InventoryPerformanceRes>);
     } catch (e) {
       print("Error during fullSync: $e");
     }
@@ -173,5 +182,27 @@ class SyncService {
     final data = _itemsBox.get(businessId);
     if (data == null) return [];
     return (data as List).map((json) => TransactionItemRes.fromJson(Map<String, dynamic>.from(json))).toList();
+  }
+
+  static Future<void> cacheExecutiveFinancials(int businessId, List<ExecutiveFinancialsRes> data) async {
+    final jsonData = data.map((e) => e.toJson()).toList();
+    await _analyticsBox.put('exec_$businessId', jsonData);
+  }
+
+  static List<ExecutiveFinancialsRes> getCachedExecutiveFinancials(int businessId) {
+    final data = _analyticsBox.get('exec_$businessId');
+    if (data == null) return [];
+    return (data as List).map((json) => ExecutiveFinancialsRes.fromJson(Map<String, dynamic>.from(json))).toList();
+  }
+
+  static Future<void> cacheInventoryPerformance(int businessId, List<InventoryPerformanceRes> data) async {
+    final jsonData = data.map((e) => e.toJson()).toList();
+    await _analyticsBox.put('perf_$businessId', jsonData);
+  }
+
+  static List<InventoryPerformanceRes> getCachedInventoryPerformance(int businessId) {
+    final data = _analyticsBox.get('perf_$businessId');
+    if (data == null) return [];
+    return (data as List).map((json) => InventoryPerformanceRes.fromJson(Map<String, dynamic>.from(json))).toList();
   }
 }

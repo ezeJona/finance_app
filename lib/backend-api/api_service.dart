@@ -560,4 +560,32 @@ class ApiService {
       throw Exception('An unexpected error occurred: $e');
     }
   }
+
+  // --- ANALYTICS VIEWS ---
+
+  static Future<List<ExecutiveFinancialsRes>> getExecutiveFinancials(int businessId, DateTime start, DateTime end) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('v_executive_financials')
+          .select()
+          .eq('business_id', businessId)
+          .gte('entry_date', start.toIso8601String())
+          .lte('entry_date', end.toIso8601String());
+      return response.map((json) => ExecutiveFinancialsRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch executive financials: $e');
+    }
+  }
+
+  static Future<List<InventoryPerformanceRes>> getInventoryPerformance(int businessId) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('v_inventory_performance')
+          .select()
+          .eq('business_id', businessId);
+      return response.map((json) => InventoryPerformanceRes.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch inventory performance: $e');
+    }
+  }
 }

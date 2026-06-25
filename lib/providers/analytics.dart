@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'business.dart';
 import 'transactions.dart';
 import 'debts.dart';
-import 'business.dart';
 import 'inventory.dart';
-import 'transaction_items.dart';
-import '../backend-api/sync_service.dart';
 import '../backend-api/api_service.dart';
+import '../backend-api/sync_service.dart';
 import '../backend-api/dtos.dart';
 
 enum InsightType { achievement, warning, alert }
@@ -19,55 +18,72 @@ class Insight {
   Insight({required this.title, required this.message, required this.type});
 }
 
+enum StatisticsFilter { today, thisWeek, thisMonth, custom }
+
 class AnalyticsState {
-  final List<Insight> insights;
-  final double totalSales; // Brutas (Inventario)
-  final double realProfit; // Margen Producto (Ventas - COGS)
-  final double profitMargin; // %
+  final double totalSales;
+  final double realProfit;
+  final double profitMargin;
+  final double operationalLoad;
+  final double directIncome;
+  final double directExpenses;
+  final double netCashBalance;
+  final double inventorySales;
+  final double cogs;
   final double monthlyPrediction;
+  final Map<String, double> expensesByCategory;
+  final List<Insight> insights;
   final String periodLabel;
   final List<TransactionRes> filteredTransactions;
   final List<DebtRes> filteredDebts;
-  
-  // Desglose
-  final double directIncome;
-  final double directExpenses;
-  final double inventorySales;
-  final double cogs;
-  
-  // Nuevas métricas
-  final double operationalLoad; // % de ganancia que se va en gastos
-  final double netCashBalance; // Direct Income - Direct Expenses
-  final Map<String, double> expensesByCategory;
 
   AnalyticsState({
-    required this.insights,
     required this.totalSales,
     required this.realProfit,
     required this.profitMargin,
+    required this.operationalLoad,
+    required this.directIncome,
+    required this.directExpenses,
+    required this.netCashBalance,
+    required this.inventorySales,
+    required this.cogs,
     required this.monthlyPrediction,
+    required this.expensesByCategory,
+    required this.insights,
     required this.periodLabel,
     required this.filteredTransactions,
     required this.filteredDebts,
-    required this.directIncome,
-    required this.directExpenses,
-    required this.inventorySales,
-    required this.cogs,
-    required this.operationalLoad,
-    required this.netCashBalance,
-    required this.expensesByCategory,
   });
 }
-
-enum StatisticsFilter { today, thisWeek, thisMonth, custom }
 
 final statisticsFilterProvider = StateProvider<StatisticsFilter>((ref) => StatisticsFilter.thisMonth);
 final statisticsCustomRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
 
+final executiveFinancialsProvider = FutureProvider<List<ExecutiveFinancialsRes>>((ref) async {
+  final business = ref.watch(businessProvider);
+  if (business == null) return [];
+  
+  final cached = SyncService.getCachedExecutiveFinancials(business.id);
+  
+  try {
+    final now = DateTime.now();
+    final start = DateTime(now.year - 1, now.month, now.day);
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    
+    final fresh = await ApiService.getExecutiveFinancials(business.id, start, end);
+    await SyncService.cacheExecutiveFinancials(business.id, fresh);
+    return fresh;
+  } catch (e) {
+    return cached.isNotEmpty ? cached : [];
+  }
+});
+
 final analyticsProvider = Provider<AnalyticsState>((ref) {
+  final financialsAsync = ref.watch(executiveFinancialsProvider);
+  final performanceAsync = ref.watch(inventoryPerformanceProvider);
   final transactionsAsync = ref.watch(historicTransactionsProvider);
   final debtsAsync = ref.watch(debtsProvider);
-  final transactionItemsAsync = ref.watch(transactionItemsProvider);
+  
   final filter = ref.watch(statisticsFilterProvider);
   final customRange = ref.watch(statisticsCustomRangeProvider);
   final business = ref.watch(businessProvider);
@@ -103,177 +119,122 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
       break;
   }
 
-  if (business == null) {
-     return AnalyticsState(
-      insights: [],
-      totalSales: 0,
-      realProfit: 0,
-      profitMargin: 0,
-      monthlyPrediction: 0,
-      periodLabel: periodLabel,
-      filteredTransactions: [],
-      filteredDebts: [],
-      directIncome: 0,
-      directExpenses: 0,
-      inventorySales: 0,
-      cogs: 0,
-      operationalLoad: 0,
-      netCashBalance: 0,
-      expensesByCategory: {},
-    );
-  }
+  // Initial empty state
+  final emptyState = AnalyticsState(
+    totalSales: 0,
+    realProfit: 0,
+    profitMargin: 0,
+    operationalLoad: 0,
+    directIncome: 0,
+    directExpenses: 0,
+    netCashBalance: 0,
+    inventorySales: 0,
+    cogs: 0,
+    monthlyPrediction: 0,
+    expensesByCategory: {},
+    insights: [],
+    periodLabel: periodLabel,
+    filteredTransactions: [],
+    filteredDebts: [],
+  );
 
-  // Priorizar datos de la red, pero usar cache si están cargando o la red falla
-  final transactions = transactionsAsync.value ?? SyncService.getCachedTransactions(business.id);
-  final debts = debtsAsync.value ?? SyncService.getCachedDebts(business.id);
-  final transactionItems = transactionItemsAsync.value ?? SyncService.getCachedTransactionItems(business.id);
+  if (business == null) return emptyState;
 
-  // Solo devolvemos "cero" absoluto si realmente no hay nada en cache ni en red
-  if (transactions.isEmpty && debts.isEmpty && transactionItems.isEmpty && transactionsAsync.isLoading) {
-     return AnalyticsState(
-      insights: [],
-      totalSales: 0,
-      realProfit: 0,
-      profitMargin: 0,
-      monthlyPrediction: 0,
-      periodLabel: periodLabel,
-      filteredTransactions: [],
-      filteredDebts: [],
-      directIncome: 0,
-      directExpenses: 0,
-      inventorySales: 0,
-      cogs: 0,
-      operationalLoad: 0,
-      netCashBalance: 0,
-      expensesByCategory: {},
-    );
-  }
+  final financials = financialsAsync.value ?? SyncService.getCachedExecutiveFinancials(business.id);
+  final performance = performanceAsync.value ?? SyncService.getCachedInventoryPerformance(business.id);
+  final allTransactions = transactionsAsync.value ?? SyncService.getCachedTransactions(business.id);
+  final allDebts = debtsAsync.value ?? SyncService.getCachedDebts(business.id);
 
-  final filteredTxs = transactions.where((tx) => 
-    tx.transactionDate.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
-    tx.transactionDate.isBefore(endDate.add(const Duration(seconds: 1)))
+  // 1. Filtrado de Agregados por Rango
+  final rangeFinancials = financials.where((f) => 
+    (f.entryDate.isAtSameMomentAs(startDate) || f.entryDate.isAfter(startDate)) &&
+    (f.entryDate.isAtSameMomentAs(endDate) || f.entryDate.isBefore(endDate))
   ).toList();
 
-  final filteredDebtsList = debts.where((d) => 
-    d.createdAt.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
-    d.createdAt.isBefore(endDate.add(const Duration(seconds: 1)))
-  ).toList();
+  final directIncome = rangeFinancials.fold(0.0, (sum, f) => sum + f.directIncome);
+  final inventorySales = rangeFinancials.fold(0.0, (sum, f) => sum + f.totalInventorySales);
+  final directExpenses = rangeFinancials.fold(0.0, (sum, f) => sum + f.directExpenses);
+  final cogs = rangeFinancials.fold(0.0, (sum, f) => sum + f.totalCOGS);
 
-  // 1. Ventas Totales (Brutas del Periodo - SOLO INVENTARIO)
-  final filteredTxIds = filteredTxs.map((tx) => tx.id).toSet();
-  final filteredDebtIds = filteredDebtsList.map((d) => d.id).toSet();
-
-  final periodItems = transactionItems.where((item) => 
-    (item.transactionId != null && filteredTxIds.contains(item.transactionId)) ||
-    (item.debtId != null && filteredDebtIds.contains(item.debtId))
-  ).toList();
-
-  final inventorySales = periodItems.fold(0.0, (sum, item) => sum + item.subtotal);
   final totalSales = inventorySales;
-
-  // 2. Ganancia Real (Margen de Producto)
-  final cogs = periodItems.fold(0.0, (sum, item) => sum + (item.unitCost * item.quantity));
   final realProfit = totalSales - cogs;
-
-  // 3. Margen de Producto (%)
   final profitMargin = totalSales > 0 ? (realProfit / totalSales) * 100 : 0.0;
-
-  // 4. Gastos e Ingresos Directos (Flujo de Caja)
-  final directIncome = filteredTxs
-      .where((tx) => tx.type == 'income' && tx.description != 'Venta de productos en inventario')
-      .fold(0.0, (sum, tx) => sum + tx.amount);
-
-  final directExpenses = filteredTxs
-      .where((tx) => tx.type == 'expense')
-      .fold(0.0, (sum, tx) => sum + tx.amount);
-
+  
+  // operationalLoad: (directExpenses / (directIncome + totalSales)) * 100
+  final totalGrossIncome = directIncome + totalSales;
+  final operationalLoad = totalGrossIncome > 0 ? (directExpenses / totalGrossIncome) * 100 : 0.0;
+  
   final netCashBalance = directIncome - directExpenses;
 
-  // 5. Carga Operativa
-  final operationalLoad = realProfit > 0 ? (directExpenses / realProfit) * 100 : 0.0;
+  // 2. Predicción del Mes (promedio diario del periodo * 30)
+  final daysInPeriod = endDate.difference(startDate).inDays + 1;
+  final avgDailySales = daysInPeriod > 0 ? (directIncome + totalSales) / daysInPeriod : 0.0;
+  final monthlyPrediction = avgDailySales * 30;
 
-  // 6. Gastos por Categoría (Semáforo)
+  // 3. Gastos por Categoría y Filtros de Detalle
   final Map<String, double> expensesByCategory = {};
-  for (var tx in filteredTxs.where((tx) => tx.type == 'expense')) {
-    expensesByCategory[tx.category] = (expensesByCategory[tx.category] ?? 0) + tx.amount;
+  final filteredTransactions = allTransactions.where((tx) => 
+    (tx.transactionDate.isAtSameMomentAs(startDate) || tx.transactionDate.isAfter(startDate)) &&
+    (tx.transactionDate.isAtSameMomentAs(endDate) || tx.transactionDate.isBefore(endDate))
+  ).toList();
+
+  for (var tx in filteredTransactions.where((tx) => tx.type == 'expense')) {
+    expensesByCategory[tx.category] = (expensesByCategory[tx.category] ?? 0.0) + tx.amount;
   }
 
-  // 7. Insights
+  final filteredDebts = allDebts.where((d) => 
+    (d.createdAt.isAtSameMomentAs(startDate) || d.createdAt.isAfter(startDate)) &&
+    (d.createdAt.isAtSameMomentAs(endDate) || d.createdAt.isBefore(endDate))
+  ).toList();
+
+  // 4. Insights Inteligentes
   final List<Insight> insights = [];
 
-  // Insight de Carga Operativa
   if (operationalLoad > 40) {
     insights.add(Insight(
       title: "Alta Carga Operativa",
-      message: "⚠️ Tus gastos operativos consumen el ${operationalLoad.toStringAsFixed(1)}% de tus ganancias. Intenta mantenerlo por debajo del 40%.",
+      message: "Tus gastos operativos consumen el ${operationalLoad.toStringAsFixed(1)}% de tus ingresos. Mantente bajo el 40%.",
       type: InsightType.alert,
     ));
   }
 
-  // Mezcla de Gastos
-  final personalExpenses = filteredTxs.where((tx) => 
-    tx.type == 'expense' && 
-    ['Personal', 'Hogar', 'Comida propia', 'Salud Personal'].contains(tx.category)
-  );
-  if (personalExpenses.isNotEmpty) {
+  // Productos con stock bajo (Stock < 5)
+  final lowStockProducts = performance.where((p) => p.stock < 5).toList();
+  if (lowStockProducts.isNotEmpty) {
     insights.add(Insight(
-      title: "Mezcla de Gastos",
-      message: "💡 Tip: Evita pagar antojos o gastos personales directo de la caja del negocio. Asígnate un sueldo fijo.",
+      title: "Stock Crítico",
+      message: "Tienes ${lowStockProducts.length} productos con menos de 5 unidades. ¡Revisa tu inventario!",
       type: InsightType.warning,
     ));
   }
 
-  // Semáforo de Riesgo por Fiado
-  final expiredDebts = debts.where((d) => 
-    d.type == 'to_collect' && 
-    d.status == 'pending' && 
-    d.dueDate != null && 
-    d.dueDate!.isBefore(now)
-  ).toList();
-
-  if (expiredDebts.isNotEmpty) {
-    final totalExpired = expiredDebts.fold(0.0, (sum, d) => sum + d.remainingAmount);
-    insights.add(Insight(
-      title: "Semáforo de Riesgo",
-      message: "⚠️ Alerta: Tienes C\$ ${totalExpired.toStringAsFixed(2)} en deudas vencidas. Prioriza la cobranza para no perder liquidez.",
-      type: InsightType.alert,
-    ));
+  // Producto Estrella (Más vendido en los últimos 30 días)
+  if (performance.isNotEmpty) {
+    final topProduct = performance.reduce((a, b) => a.unitsSoldLast30Days > b.unitsSoldLast30Days ? a : b);
+    if (topProduct.unitsSoldLast30Days > 0) {
+      insights.add(Insight(
+        title: "Producto Estrella",
+        message: "${topProduct.productName} es tu líder en ventas con ${topProduct.unitsSoldLast30Days.toInt()} unidades este mes.",
+        type: InsightType.achievement,
+      ));
+    }
   }
-
-  // Alerta de Inactividad
-  if (filter == StatisticsFilter.today && totalSales == 0) {
-    insights.add(Insight(
-      title: "Inactividad",
-      message: "📉 Movimiento: No has registrado ventas el día de hoy. ¡Mantén el ritmo!",
-      type: InsightType.alert,
-    ));
-  }
-
-  // 8. Predicción
-  final startOfMonth = DateTime(now.year, now.month, 1);
-  final monthIncome = transactions
-      .where((tx) => tx.type == 'income' && tx.transactionDate.isAfter(startOfMonth.subtract(const Duration(seconds: 1))))
-      .fold(0.0, (sum, tx) => sum + tx.amount);
-  
-  final dayOfMonth = now.day;
-  final totalDaysInMonth = DateTime(now.year, now.month + 1, 0).day;
-  final monthlyPrediction = dayOfMonth > 0 ? (monthIncome / dayOfMonth) * totalDaysInMonth : 0.0;
 
   return AnalyticsState(
-    insights: insights,
     totalSales: totalSales,
     realProfit: realProfit,
     profitMargin: profitMargin,
-    monthlyPrediction: monthlyPrediction,
-    periodLabel: periodLabel,
-    filteredTransactions: filteredTxs,
-    filteredDebts: filteredDebtsList,
-    directIncome: directIncome,
-    inventorySales: inventorySales,
-    directExpenses: directExpenses,
-    cogs: cogs,
     operationalLoad: operationalLoad,
+    directIncome: directIncome,
+    directExpenses: directExpenses,
     netCashBalance: netCashBalance,
+    inventorySales: inventorySales,
+    cogs: cogs,
+    monthlyPrediction: monthlyPrediction,
     expensesByCategory: expensesByCategory,
+    insights: insights,
+    periodLabel: periodLabel,
+    filteredTransactions: filteredTransactions,
+    filteredDebts: filteredDebts,
   );
 });

@@ -897,3 +897,95 @@ class CreateCategoryReq {
   };
 }
 
+class ExecutiveFinancialsRes {
+  final int businessId;
+  final DateTime entryDate;
+  final double directIncome;
+  final double totalInventorySales;
+  final double directExpenses;
+  final double totalCOGS;
+
+  ExecutiveFinancialsRes({
+    required this.businessId,
+    required this.entryDate,
+    required this.directIncome,
+    required this.totalInventorySales,
+    required this.directExpenses,
+    required this.totalCOGS,
+  });
+
+  factory ExecutiveFinancialsRes.fromJson(Map<String, dynamic> json) => ExecutiveFinancialsRes(
+    businessId: json["business_id"],
+    entryDate: DateTime.parse(json["entry_date"]),
+    directIncome: (json["direct_income"] as num).toDouble(),
+    totalInventorySales: (json["total_inventory_sales"] as num).toDouble(),
+    directExpenses: (json["direct_expenses"] as num).toDouble(),
+    totalCOGS: (json["total_cogs"] as num).toDouble(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "business_id": businessId,
+    "entry_date": entryDate.toIso8601String(),
+    "direct_income": directIncome,
+    "total_inventory_sales": totalInventorySales,
+    "direct_expenses": directExpenses,
+    "total_cogs": totalCOGS,
+  };
+}
+
+class InventoryPerformanceRes {
+  final int businessId;
+  final String productId;
+  final String productName;
+  final double stock;
+  final double costPrice;
+  final double salePrice;
+  final double unitMargin;
+  final double marginPercentage;
+  final double inventoryValueCost;
+  final double inventoryValueSale;
+  final double unitsSoldLast30Days;
+
+  InventoryPerformanceRes({
+    required this.businessId,
+    required this.productId,
+    required this.productName,
+    required this.stock,
+    required this.costPrice,
+    required this.salePrice,
+    required this.unitMargin,
+    required this.marginPercentage,
+    required this.inventoryValueCost,
+    required this.inventoryValueSale,
+    required this.unitsSoldLast30Days,
+  });
+
+  factory InventoryPerformanceRes.fromJson(Map<String, dynamic> json) => InventoryPerformanceRes(
+    businessId: json["business_id"],
+    productId: json["product_id"],
+    productName: json["product_name"],
+    stock: (json["stock"] as num).toDouble(),
+    costPrice: (json["cost_price"] as num).toDouble(),
+    salePrice: (json["sale_price"] as num).toDouble(),
+    unitMargin: (json["unit_margin"] as num).toDouble(),
+    marginPercentage: (json["margin_percentage"] as num).toDouble(),
+    inventoryValueCost: (json["inventory_value_cost"] as num).toDouble(),
+    inventoryValueSale: (json["inventory_value_sale"] as num).toDouble(),
+    unitsSoldLast30Days: (json["units_sold_last_30_days"] as num).toDouble(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "business_id": businessId,
+    "product_id": productId,
+    "product_name": productName,
+    "stock": stock,
+    "cost_price": costPrice,
+    "sale_price": salePrice,
+    "unit_margin": unitMargin,
+    "margin_percentage": marginPercentage,
+    "inventory_value_cost": inventoryValueCost,
+    "inventory_value_sale": inventoryValueSale,
+    "units_sold_last_30_days": unitsSoldLast30Days,
+  };
+}
+

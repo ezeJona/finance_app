@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -19,9 +20,12 @@ Future<void> main() async {
   // Inicializar hive, supabase, notificaciones, timezone
   await initHive();
   await initSupabase();
-  await initNotifications();
+  
+  if (!kIsWeb) {
+    await initNotifications();
+  }
 
-  runApp(ProviderScope(child: MyApp()));
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {

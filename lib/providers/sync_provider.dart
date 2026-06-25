@@ -8,39 +8,41 @@ import 'transactions.dart';
 import 'debts.dart';
 import 'inventory.dart';
 import 'transaction_items.dart';
+import 'analytics.dart';
 
 final syncProvider = Provider<void>((ref) {
   final connectivity = ref.watch(connectivityStatusProvider);
   final business = ref.watch(businessProvider);
 
-  if (connectivity == ConnectivityStatus.isConnected) {
-    // Cuando recuperamos conexión, procesamos la cola
-    SyncService.processQueue().then((_) {
-      // Invalidamos providers para refrescar datos desde la nube
-      ref.invalidate(transactionsProvider);
-      ref.invalidate(historicTransactionsProvider);
-      ref.read(debtsProvider.notifier).fetchDebts();
-      ref.invalidate(productCategoriesProvider);
-      ref.invalidate(productsProvider);
-      ref.invalidate(transactionItemsProvider);
-    });
-  }
-  
-  // Sincronización completa al cambiar de negocio o iniciar sesión
-  if (business != null) {
-    // Solo ejecutamos fullSync si estamos online
-    if (connectivity == ConnectivityStatus.isConnected) {
-      SyncService.fullSync(business.id).then((_) {
-        ref.invalidate(transactionsProvider);
-        ref.invalidate(historicTransactionsProvider);
-        ref.read(debtsProvider.notifier).fetchDebts();
-        ref.invalidate(productCategoriesProvider);
-        ref.invalidate(productsProvider);
-        ref.invalidate(transactionItemsProvider);
+  // Usamos ref.listen para reaccionar a cambios de conectividad sin causar efectos secundarios en el build
+  ref.listen(connectivityStatusProvider, (previous, next) {
+    if (next == ConnectivityStatus.isConnected) {
+      SyncService.processQueue().then((_) {
+        _invalidateAll(ref);
       });
     }
-  }
+  });
+
+  // Reaccionar al cambio de negocio
+  ref.listen(businessProvider, (previous, next) {
+    if (next != null && connectivity == ConnectivityStatus.isConnected) {
+      SyncService.fullSync(next.id).then((_) {
+        _invalidateAll(ref);
+      });
+    }
+  });
 });
+
+void _invalidateAll(Ref ref) {
+  ref.invalidate(transactionsProvider);
+  ref.invalidate(historicTransactionsProvider);
+  ref.read(debtsProvider.notifier).fetchDebts();
+  ref.invalidate(productCategoriesProvider);
+  ref.invalidate(productsProvider);
+  ref.invalidate(transactionItemsProvider);
+  ref.invalidate(executiveFinancialsProvider);
+  ref.invalidate(inventoryPerformanceProvider);
+}
 
 final syncQueueCountProvider = StreamProvider<int>((ref) {
   final box = Hive.box('sync_queue');

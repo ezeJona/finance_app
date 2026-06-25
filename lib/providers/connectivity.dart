@@ -9,10 +9,22 @@ final connectivityStatusProvider = StateNotifierProvider<ConnectivityNotifier, C
 
 class ConnectivityNotifier extends StateNotifier<ConnectivityStatus> {
   ConnectivityNotifier() : super(ConnectivityStatus.notDetermined) {
-    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
-      _updateStatus(results);
-    });
-    _checkInitialConnectivity();
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      // Pequeña espera para asegurar que el DOM de la web esté listo antes de añadir listeners
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+        _updateStatus(results);
+      });
+      _checkInitialConnectivity();
+    } catch (e) {
+      // En la web, si falla el listener, asumimos conectado por defecto para no bloquear la app
+      state = ConnectivityStatus.isConnected;
+    }
   }
 
   Future<void> _checkInitialConnectivity() async {

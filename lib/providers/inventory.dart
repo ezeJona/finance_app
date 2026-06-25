@@ -7,6 +7,7 @@ import '../models/cart_item.dart';
 import 'business.dart';
 import 'transactions.dart';
 import 'debts.dart';
+import 'analytics.dart';
 
 final productCategoriesProvider =
     StateNotifierProvider<ProductCategoriesNotifier, AsyncValue<List<ProductCategoryRes>>>((ref) {
@@ -72,6 +73,8 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
     try {
       final products = await InventoryRepository.getProducts(business!.id);
       state = AsyncValue.data(products);
+      // Refrescar también el performance cuando cambian productos
+      ref.invalidate(inventoryPerformanceProvider);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -83,6 +86,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data([newProduct, ...list]);
       });
+      ref.invalidate(inventoryPerformanceProvider);
     } catch (e) {
       rethrow;
     }
@@ -94,6 +98,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.map((p) => p.id == id ? updatedProduct : p).toList());
       });
+      ref.invalidate(inventoryPerformanceProvider);
     } catch (e) {
       rethrow;
     }
@@ -106,35 +111,41 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
       state.whenData((list) {
         state = AsyncValue.data(list.where((p) => p.id != id).toList());
       });
+      ref.invalidate(inventoryPerformanceProvider);
     } catch (e) {
       rethrow;
     }
   }
 }
 
-final inventoryMetricsProvider = Provider<({double totalArticles, double totalSales})>((ref) {
-  final productsAsync = ref.watch(productsProvider);
-  final transactionsAsync = ref.watch(historicTransactionsProvider);
-  final debtsAsync = ref.watch(debtsProvider);
+final inventoryPerformanceProvider = FutureProvider<List<InventoryPerformanceRes>>((ref) async {
+  final business = ref.watch(businessProvider);
+  if (business == null) return [];
 
-  final totalArticles = productsAsync.maybeWhen(
-    data: (products) => products.fold<double>(0.0, (sum, item) => sum + item.stock),
+  final cached = SyncService.getCachedInventoryPerformance(business.id);
+
+  try {
+    final fresh = await ApiService.getInventoryPerformance(business.id);
+    await SyncService.cacheInventoryPerformance(business.id, fresh);
+    return fresh;
+  } catch (e) {
+    return cached;
+  }
+});
+
+final inventoryMetricsProvider = Provider<({double totalArticles, double totalSales})>((ref) {
+  final performanceAsync = ref.watch(inventoryPerformanceProvider);
+  final financialsAsync = ref.watch(executiveFinancialsProvider);
+
+  final totalArticles = performanceAsync.maybeWhen(
+    data: (items) => items.fold<double>(0.0, (sum, item) => sum + item.stock),
     orElse: () => 0.0,
   );
 
-  double totalSales = 0.0;
-
-  transactionsAsync.whenData((txs) {
-    totalSales += txs
-        .where((tx) => tx.type == 'income' && tx.description == 'Venta de productos en inventario')
-        .fold(0.0, (sum, tx) => sum + tx.amount);
-  });
-
-  debtsAsync.whenData((debts) {
-    totalSales += debts
-        .where((d) => d.type == 'to_collect' && d.description == 'Venta de productos en inventario')
-        .fold(0.0, (sum, d) => sum + d.totalAmount);
-  });
+  final totalSales = financialsAsync.maybeWhen(
+    data: (financials) => financials.fold<double>(0.0, (sum, f) => sum + f.totalInventorySales),
+    orElse: () => 0.0,
+  );
 
   return (totalArticles: totalArticles, totalSales: totalSales);
 });
