@@ -40,6 +40,7 @@ class StatisticsView extends HookConsumerWidget {
                 ref.invalidate(historicTransactionsProvider);
                 ref.invalidate(debtsProvider);
                 ref.invalidate(transactionItemsProvider);
+                ref.invalidate(executiveFinancialsProvider);
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),

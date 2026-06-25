@@ -127,6 +127,7 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
     ref.invalidate(transactionsProvider);
     ref.invalidate(historicTransactionsProvider);
     ref.invalidate(transactionItemsProvider);
+    ref.invalidate(executiveFinancialsProvider);
   }
 }
 

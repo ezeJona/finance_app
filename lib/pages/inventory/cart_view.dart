@@ -232,6 +232,7 @@ class CartView extends HookConsumerWidget {
                     ref.invalidate(historicTransactionsProvider);
                     ref.invalidate(debtsProvider);
                     ref.invalidate(transactionItemsProvider);
+                    ref.invalidate(executiveFinancialsProvider);
 
                     if (context.mounted) {
                       Navigator.pop(context); // Close modal

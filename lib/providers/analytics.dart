@@ -145,15 +145,30 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
   final allTransactions = transactionsAsync.value ?? SyncService.getCachedTransactions(business.id);
   final allDebts = debtsAsync.value ?? SyncService.getCachedDebts(business.id);
 
-  // 1. Filtrado de Agregados por Rango
+  // 1. Filtrado de Transacciones por Rango (Cálculos directos para reactividad)
+  final filteredTransactions = allTransactions.where((tx) => 
+    (tx.transactionDate.isAtSameMomentAs(startDate) || tx.transactionDate.isAfter(startDate)) &&
+    (tx.transactionDate.isAtSameMomentAs(endDate) || tx.transactionDate.isBefore(endDate))
+  ).toList();
+
+  final directIncome = filteredTransactions
+      .where((tx) => tx.type == 'income' && tx.description != 'Venta de productos en inventario')
+      .fold(0.0, (sum, tx) => sum + tx.amount);
+
+  final inventorySales = filteredTransactions
+      .where((tx) => tx.type == 'income' && tx.description == 'Venta de productos en inventario')
+      .fold(0.0, (sum, tx) => sum + tx.amount);
+
+  final directExpenses = filteredTransactions
+      .where((tx) => tx.type == 'expense')
+      .fold(0.0, (sum, tx) => sum + tx.amount);
+
+  // El COGS y otros agregados siguen viniendo de financialsAsync
   final rangeFinancials = financials.where((f) => 
     (f.entryDate.isAtSameMomentAs(startDate) || f.entryDate.isAfter(startDate)) &&
     (f.entryDate.isAtSameMomentAs(endDate) || f.entryDate.isBefore(endDate))
   ).toList();
-
-  final directIncome = rangeFinancials.fold(0.0, (sum, f) => sum + f.directIncome);
-  final inventorySales = rangeFinancials.fold(0.0, (sum, f) => sum + f.totalInventorySales);
-  final directExpenses = rangeFinancials.fold(0.0, (sum, f) => sum + f.directExpenses);
+  
   final cogs = rangeFinancials.fold(0.0, (sum, f) => sum + f.totalCOGS);
 
   final totalSales = inventorySales;
@@ -173,10 +188,6 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
 
   // 3. Gastos por Categoría y Filtros de Detalle
   final Map<String, double> expensesByCategory = {};
-  final filteredTransactions = allTransactions.where((tx) => 
-    (tx.transactionDate.isAtSameMomentAs(startDate) || tx.transactionDate.isAfter(startDate)) &&
-    (tx.transactionDate.isAtSameMomentAs(endDate) || tx.transactionDate.isBefore(endDate))
-  ).toList();
 
   for (var tx in filteredTransactions.where((tx) => tx.type == 'expense')) {
     expensesByCategory[tx.category] = (expensesByCategory[tx.category] ?? 0.0) + tx.amount;

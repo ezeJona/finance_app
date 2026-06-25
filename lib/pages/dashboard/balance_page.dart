@@ -831,6 +831,7 @@ class _TransactionFormState extends State<_TransactionForm> {
       widget.ref.read(transactionsProvider.notifier).refresh();
       widget.ref.invalidate(historicTransactionsProvider);
       widget.ref.invalidate(transactionItemsProvider);
+      widget.ref.invalidate(executiveFinancialsProvider);
 
       if (mounted) {
         Navigator.pop(context);
