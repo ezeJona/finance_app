@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class TransactionFilterState {
-  final String flowType; // 'all', 'income', 'expense'
+  final String flowType; // 'all', 'income', 'expense', 'sales'
   final String timeRange; // 'current_month', 'today', 'yesterday', 'last_5', 'last_7', 'last_30', 'custom_range'
   final DateTime selectedMonthYear;
   final DateTimeRange? customDateRange;

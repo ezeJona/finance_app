@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/business.dart';
+import '../../providers/debts.dart';
 import '../../providers/transactions.dart';
 import '../../providers/transaction_filter.dart';
 import '../../providers/sales_profit.dart';
@@ -14,6 +15,7 @@ import '../../widgets/app_header.dart';
 import '../../providers/analytics.dart';
 import '../../providers/inventory.dart';
 import '../../providers/transaction_items.dart';
+import '../../services/balance_report_service.dart';
 
 class BalancePage extends HookConsumerWidget {
   const BalancePage({super.key});
@@ -210,11 +212,12 @@ class BalancePage extends HookConsumerWidget {
     String flowLabel = "Todos los movimientos";
     if (filter.flowType == 'income') flowLabel = "Ingresos";
     if (filter.flowType == 'expense') flowLabel = "Pagos";
+    if (filter.flowType == 'sales') flowLabel = "Ventas";
 
     return Row(
       children: [
         Expanded(
-          flex: 2,
+          flex: 4,
           child: _buildActionChip(
             context,
             timeLabel,
@@ -224,7 +227,7 @@ class BalancePage extends HookConsumerWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          flex: 3,
+          flex: 5,
           child: _buildActionChip(
             context,
             flowLabel,
@@ -232,8 +235,126 @@ class BalancePage extends HookConsumerWidget {
             onTap: () => _showFlowTypePicker(context, ref, filter),
           ),
         ),
+        const SizedBox(width: 8),
+        _buildDownloadButton(context, ref, filter),
       ],
     );
+  }
+
+  Widget _buildDownloadButton(BuildContext context, WidgetRef ref, TransactionFilterState filter) {
+    return Container(
+      decoration: BoxDecoration(
+        color: darkNavy,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: darkNavy.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.file_download_rounded, color: Colors.white, size: 20),
+        onPressed: () => _exportReport(context, ref, filter),
+        tooltip: 'Exportar Excel',
+      ),
+    );
+  }
+
+  Future<void> _exportReport(BuildContext context, WidgetRef ref, TransactionFilterState filter) async {
+    final business = ref.read(businessProvider);
+    if (business == null) return;
+
+    final transactionsAsync = ref.read(transactionsProvider);
+    final itemsAsync = ref.read(transactionItemsProvider);
+    final productsAsync = ref.read(productsProvider);
+    final debtsAsync = ref.read(debtsProvider);
+
+    if (transactionsAsync.hasValue && itemsAsync.hasValue) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generando reporte...'), duration: Duration(seconds: 2)),
+      );
+
+      String timeLabel = "Periodo seleccionado";
+      if (filter.timeRange == 'current_month') {
+        timeLabel = DateFormat("MMMM yyyy", 'es').format(filter.selectedMonthYear);
+      } else if (filter.timeRange == 'custom_range' && filter.customDateRange != null) {
+        timeLabel = "${DateFormat('dd/MM').format(filter.customDateRange!.start)} - ${DateFormat('dd/MM').format(filter.customDateRange!.end)}";
+      }
+
+      final products = productsAsync.value ?? [];
+      final List<TransactionItemModel> allItemsMapped = itemsAsync.value!.map((item) {
+        final product = products.firstWhere((p) => p.id == item.productId, 
+          orElse: () => ProductRes(id: '', businessId: 0, name: 'Producto desconocido', costPrice: 0, salePrice: 0, stock: 0, minStock: 0, createdAt: DateTime.now())
+        );
+        return TransactionItemModel(item: item, productName: product.name);
+      }).toList();
+
+      // Filtrar deudas según el periodo del reporte para que coincida con la UI
+      List<DebtRes> filteredDebts = [];
+      if (debtsAsync.hasValue) {
+         // Aplicar el mismo filtro de fecha que a las transacciones
+         DateTime? startDate;
+         DateTime? endDate;
+         final now = DateTime.now();
+
+         switch (filter.timeRange) {
+           case 'today':
+             startDate = DateTime(now.year, now.month, now.day);
+             endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+             break;
+           case 'yesterday':
+             final yesterday = now.subtract(const Duration(days: 1));
+             startDate = DateTime(yesterday.year, yesterday.month, yesterday.day);
+             endDate = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
+             break;
+           case 'current_month':
+             startDate = DateTime(filter.selectedMonthYear.year, filter.selectedMonthYear.month, 1);
+             endDate = DateTime(filter.selectedMonthYear.year, filter.selectedMonthYear.month + 1, 0, 23, 59, 59);
+             break;
+           case 'custom_range':
+             if (filter.customDateRange != null) {
+               startDate = filter.customDateRange!.start;
+               endDate = filter.customDateRange!.end.add(const Duration(hours: 23, minutes: 59, seconds: 59));
+             }
+             break;
+           case 'last_7':
+             startDate = now.subtract(const Duration(days: 7));
+             break;
+           case 'last_30':
+             startDate = now.subtract(const Duration(days: 30));
+             break;
+         }
+
+         filteredDebts = debtsAsync.value!.where((d) {
+           if (startDate != null && d.createdAt.isBefore(startDate)) return false;
+           if (endDate != null && d.createdAt.isAfter(endDate)) return false;
+           
+           // Si el filtro de tipo es 'sales', solo ventas al crédito
+           if (filter.flowType == 'sales') return d.type == 'to_collect';
+           // Si el filtro es 'expense', solo compras al crédito
+           if (filter.flowType == 'expense') return d.type == 'to_pay';
+           // Si es 'income', omitimos deudas (ya que suelen ser ventas al crédito o préstamos)
+           if (filter.flowType == 'income') return false;
+           
+           return true; // Para 'all', todas las deudas del periodo
+         }).toList();
+      }
+
+      await BalanceReportService.exportToExcel(
+        transactions: transactionsAsync.value!,
+        debts: filteredDebts,
+        allItems: allItemsMapped,
+        businessName: business.name,
+        currency: business.currencyCode,
+        dateRangeLabel: timeLabel,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, espera a que carguen los datos')),
+      );
+    }
   }
 
   Widget _buildActionChip(BuildContext context, String label, IconData icon, {required VoidCallback onTap}) {
@@ -295,8 +416,17 @@ class BalancePage extends HookConsumerWidget {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.shopping_bag_outlined, color: primaryYellow),
+            title: const Text("Ventas (Inventario)"),
+            selected: filter.flowType == 'sales',
+            onTap: () {
+              ref.read(transactionFilterProvider.notifier).setFlowType('sales');
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.arrow_upward, color: incomeGreen),
-            title: const Text("Ingresos"),
+            title: const Text("Otros Ingresos"),
             selected: filter.flowType == 'income',
             onTap: () {
               ref.read(transactionFilterProvider.notifier).setFlowType('income');

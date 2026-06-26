@@ -4,6 +4,7 @@ import '../backend-api/dtos.dart';
 import '../backend-api/sync_service.dart';
 import 'business.dart';
 import 'transaction_filter.dart';
+import 'transaction_items.dart';
 
 final transactionsProvider =
     StateNotifierProvider<TransactionsNotifier, AsyncValue<List<TransactionRes>>>((ref) {
@@ -71,20 +72,68 @@ class TransactionsNotifier extends StateNotifier<AsyncValue<List<TransactionRes>
     }
 
     try {
+      String? apiType = filter.flowType;
+      if (apiType == 'sales') {
+        apiType = 'income'; // Para el API, las ventas son ingresos
+      }
+
+      // 1. Obtener transacciones base
       final fresh = await ApiService.getFilteredTransactions(
         businessId: business!.id,
-        type: filter.flowType,
+        type: apiType == 'sales' || apiType == 'income' || apiType == 'expense' ? apiType : 'all',
         startDate: startDate,
         endDate: endDate,
         limit: limit,
       );
       
-      // Actualizamos cache local si es una vista general (sin filtros específicos de tipo o es la carga por defecto)
+      List<TransactionRes> resultList = fresh;
+
+      // 2. Si el filtro incluye ventas, necesitamos los items para identificar qué es una venta
+      // y también podríamos querer incluir deudas de tipo 'to_collect' (ventas al crédito)
+      if (filter.flowType == 'sales' || filter.flowType == 'all' || filter.flowType == 'income') {
+        final allItems = await ref.read(transactionItemsProvider.future);
+        final saleTxIds = allItems.map((e) => e.transactionId).whereType<String>().toSet();
+
+        if (filter.flowType == 'sales') {
+          // Filtrar solo las transacciones que tienen items
+          resultList = fresh.where((tx) => saleTxIds.contains(tx.id)).toList();
+          
+          // Además, buscar Deudas que sean ventas al crédito (to_collect) en este periodo
+          final allDebts = await ApiService.fetchDebtsByBusiness(business!.id);
+          final filteredDebts = allDebts.where((d) => 
+            d.type == 'to_collect' && 
+            (startDate == null || d.createdAt.isAfter(startDate)) &&
+            (endDate == null || d.createdAt.isBefore(endDate))
+          ).toList();
+
+          // Convertir deudas a "pseudo-transacciones" para mostrarlas en la lista de ventas
+          final debtTxs = filteredDebts.map((d) => TransactionRes(
+            id: d.id,
+            businessId: d.businessId,
+            type: 'income',
+            amount: d.totalAmount,
+            description: d.description ?? "Venta al Crédito",
+            paymentMethod: 'Crédito',
+            contactName: d.contactName,
+            category: 'Inventario',
+            transactionDate: d.createdAt,
+            createdAt: d.createdAt,
+          )).toList();
+
+          resultList = [...resultList, ...debtTxs];
+          resultList.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+        } else if (filter.flowType == 'income') {
+          // Ingresos que NO son ventas (sin items)
+          resultList = fresh.where((tx) => tx.type == 'income' && !saleTxIds.contains(tx.id)).toList();
+        }
+      }
+
+      // Actualizamos cache local si es una vista general
       if (filter.flowType == 'all' && (filter.timeRange == 'current_month' || filter.timeRange == 'last_30')) {
           SyncService.cacheTransactions(business!.id, fresh);
       }
       
-      state = AsyncValue.data(fresh);
+      state = AsyncValue.data(resultList);
     } catch (e, st) {
       // Si falla la red pero tenemos cache, mantenemos el cache y mostramos error sutil si fuera necesario
       if (cached.isNotEmpty) {
