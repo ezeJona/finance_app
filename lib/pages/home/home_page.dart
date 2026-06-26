@@ -70,11 +70,6 @@ class HomePage extends HookConsumerWidget {
       return null;
     }, [authUser]);
 
-    useEffect(() {
-      ref.read(businessProvider.notifier).fetch();
-      return;
-    }, []);
-
     final onSelectNavigationIndex = useCallback((int index) {
       selectedNavIndex.value = index;
     }, []);

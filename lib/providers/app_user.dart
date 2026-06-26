@@ -8,7 +8,7 @@ import '../backend-api/dtos.dart';
 import 'auth_user.dart';
 
 final appUserProvider =
-    StateNotifierProvider.autoDispose<AppUserNotifier, AppUserRes?>(
+    StateNotifierProvider<AppUserNotifier, AppUserRes?>(
       (ref) => AppUserNotifier(ref.watch(authUserProvider)),
     );
 

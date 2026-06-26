@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/app_user.dart';
 import '../providers/business.dart';
 import '../providers/auth_user.dart';
@@ -33,52 +34,36 @@ class AppDrawer extends HookConsumerWidget {
         children: [
           UserAccountsDrawerHeader(
             decoration: const BoxDecoration(color: primaryYellow),
-            currentAccountPicture: Stack(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.white,
-                  radius: 40,
-                  child: Text(
-                    appUser?.firstName.isNotEmpty == true
-                        ? appUser!.firstName.substring(0, 1).toUpperCase()
-                        : "U",
-                    style: const TextStyle(
-                        color: primaryYellow,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              radius: 40,
+              backgroundImage: appUser?.avatar != null && appUser!.avatar!.isNotEmpty
+                  ? CachedNetworkImageProvider(appUser.avatar!)
+                  : null,
+              child: appUser?.avatar == null || appUser!.avatar!.isEmpty
+                  ? Text(
+                      appUser?.firstName.isNotEmpty == true
+                          ? appUser!.firstName.substring(0, 1).toUpperCase()
+                          : "U",
+                      style: const TextStyle(
+                          color: primaryYellow,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold),
+                    )
+                  : null,
             ),
             accountName: Text(
               '${appUser?.firstName ?? "Usuario"} ${appUser?.firstLastName ?? ""}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            accountEmail: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(authUser?.email ?? "sin-email@hospired.com"),
-                const SizedBox(height: 2),
-              ],
-            ),
+            accountEmail: Text(authUser?.email ?? "sin-email@hospired.com"),
           ),
           Expanded(
             child: businessesAsync.when(
               data: (businesses) => ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                    child: Text(
-                      "MIS NEGOCIOS",
-                      style: TextStyle(
-                          color: textGray,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2),
-                    ),
-                  ),
+                  _buildCategoryHeader("MIS NEGOCIOS"),
                   ...businesses.map((b) => ListTile(
                         leading: const Icon(Icons.storefront, color: darkNavy),
                         title: Text(b.name,
@@ -135,17 +120,19 @@ class AppDrawer extends HookConsumerWidget {
                           ],
                         ),
                         onTap: () async {
-                          // Establecer el negocio en el provider (el notifier ya persiste localmente)
+                          // Establecer el negocio en el provider
                           ref.read(businessProvider.notifier).set(b);
                           
-                          // Persistencia explícita solicitada para asegurar UX fluida
+                          // Persistencia local
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setInt('last_active_business_id', b.id);
 
-                          if (context.mounted) Navigator.pop(context);
+                          // Navegación forzada a la página de balance (Home)
+                          if (context.mounted) {
+                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                          }
                         },
                       )),
-                  const Divider(),
                   ListTile(
                     leading:
                         const Icon(Icons.add_circle_outline, color: emeraldGreen),
@@ -161,6 +148,7 @@ class AppDrawer extends HookConsumerWidget {
                     },
                   ),
                   const Divider(),
+                  _buildCategoryHeader("HERRAMIENTAS"),
                   ListTile(
                     leading: const Icon(Icons.analytics_outlined, color: darkNavy),
                     title: const Text('Estadísticas',
@@ -170,10 +158,9 @@ class AppDrawer extends HookConsumerWidget {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsView()));
                     },
                   ),
-                  const Divider(),
                   ListTile(
                     leading: const Icon(Icons.person_outline_rounded, color: darkNavy),
-                    title: const Text('Perfil',
+                    title: const Text('Mi Perfil',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     onTap: () {
                       Navigator.pop(context);
@@ -181,6 +168,7 @@ class AppDrawer extends HookConsumerWidget {
                     },
                   ),
                   const Divider(),
+                  _buildCategoryHeader("SESIÓN"),
                   ListTile(
                     leading: const Icon(Icons.logout, color: expenseRed),
                     title: const Text(
@@ -222,6 +210,20 @@ class AppDrawer extends HookConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+            color: textGray,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2),
       ),
     );
   }

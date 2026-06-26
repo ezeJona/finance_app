@@ -10,7 +10,7 @@ import 'auth_user.dart';
 import 'businesses.dart';
 
 final businessProvider =
-    StateNotifierProvider.autoDispose<BusinessNotifier, BusinessRes?>(
+    StateNotifierProvider<BusinessNotifier, BusinessRes?>(
   (ref) {
     final authUser = ref.watch(authUserProvider);
     return BusinessNotifier(ref, authUser);
