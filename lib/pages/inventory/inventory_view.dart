@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_drawer.dart';
 import 'product_form_page.dart';
@@ -418,7 +419,23 @@ class InventoryView extends HookConsumerWidget {
               color: Colors.grey.shade200,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: product.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red, size: 20),
+                    )
+                  : const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+            ),
           ),
           const SizedBox(width: 4),
           PopupMenuButton<String>(
