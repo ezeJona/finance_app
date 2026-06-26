@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'dtos.dart';
@@ -558,6 +559,24 @@ class ApiService {
       throw Exception(e.message);
     } catch (e) {
       throw Exception('An unexpected error occurred: $e');
+    }
+  }
+
+  static Future<String> uploadProductImage(int businessId, File file) async {
+    try {
+      final fileExt = file.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.${const Uuid().v4()}.$fileExt';
+      final filePath = '$businessId/$fileName';
+
+      await _supabase.storage.from('products').upload(
+            filePath,
+            file,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      return _supabase.storage.from('products').getPublicUrl(filePath);
+    } catch (e) {
+      throw Exception('Failed to upload product image: $e');
     }
   }
 

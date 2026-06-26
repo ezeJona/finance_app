@@ -33,6 +33,7 @@ dependencies:
   shared_preferences: ^2.5.5
   supabase_flutter: ^2.12.4
   http: ^1.2.2
+  image_picker: ^1.1.2
 
   flutter_hooks: ^0.20.5
   hooks_riverpod: ^2.0.2

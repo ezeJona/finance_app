@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/inventory.dart';
 import '../../providers/business.dart';
 import '../../backend-api/dtos.dart';
+import '../../backend-api/api_service.dart';
 
 class ProductFormPage extends HookConsumerWidget {
   final ProductRes? product;
@@ -28,9 +32,45 @@ class ProductFormPage extends HookConsumerWidget {
     final minStockController = useTextEditingController(text: product?.minStock.toString() ?? '0');
     
     final selectedCategoryId = useState<int?>(product?.categoryId);
+    final selectedImageFile = useState<File?>(null);
     final isLoading = useState(false);
 
     final categoriesAsync = ref.watch(productCategoriesProvider);
+
+    Future<void> pickImage() async {
+      final picker = ImagePicker();
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galería'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Cámara'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source != null) {
+        final pickedFile = await picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        if (pickedFile != null) {
+          selectedImageFile.value = File(pickedFile.path);
+        }
+      }
+    }
 
     Future<void> save() async {
       if (!formKey.currentState!.validate()) return;
@@ -39,6 +79,16 @@ class ProductFormPage extends HookConsumerWidget {
       final business = ref.read(businessProvider);
 
       try {
+        String? imageUrl = product?.imageUrl;
+
+        // Subir imagen si se seleccionó una nueva
+        if (selectedImageFile.value != null) {
+          imageUrl = await ApiService.uploadProductImage(
+            business!.id,
+            selectedImageFile.value!,
+          );
+        }
+
         final req = CreateProductReq(
           businessId: business!.id,
           categoryId: selectedCategoryId.value,
@@ -48,6 +98,7 @@ class ProductFormPage extends HookConsumerWidget {
           salePrice: double.parse(salePriceController.text),
           stock: double.parse(stockController.text),
           minStock: double.parse(minStockController.text),
+          imageUrl: imageUrl,
         );
 
         if (product == null) {
@@ -126,30 +177,36 @@ class ProductFormPage extends HookConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Selector de Imagen
-                  Stack(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade400,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 40),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: darkNavy,
-                            shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: pickImage,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                          child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: _buildImagePreview(selectedImageFile.value, product?.imageUrl),
+                          ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: darkNavy,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 20),
                   // Nombre y Stock (Sustituyendo el código de barras omitido)
@@ -284,7 +341,7 @@ class ProductFormPage extends HookConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -346,5 +403,22 @@ class ProductFormPage extends HookConsumerWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildImagePreview(File? selectedImage, String? existingUrl) {
+    if (selectedImage != null) {
+      return Image.file(selectedImage, fit: BoxFit.cover);
+    }
+
+    if (existingUrl != null) {
+      return CachedNetworkImage(
+        imageUrl: existingUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+        errorWidget: (context, url, error) => const Icon(Icons.error),
+      );
+    }
+
+    return Icon(Icons.camera_alt, color: Colors.grey.shade400, size: 40);
   }
 }
