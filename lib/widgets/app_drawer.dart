@@ -10,6 +10,7 @@ import '../providers/destroy_session.dart';
 import '../backend-api/api_service.dart';
 import '../backend-api/dtos.dart';
 import '../pages/statistics/statistics_view.dart';
+import '../pages/academy/educational_view.dart';
 
 class AppDrawer extends HookConsumerWidget {
   const AppDrawer({super.key});
@@ -150,21 +151,30 @@ class AppDrawer extends HookConsumerWidget {
                   const Divider(),
                   _buildCategoryHeader("HERRAMIENTAS"),
                   ListTile(
-                    leading: const Icon(Icons.analytics_outlined, color: darkNavy),
-                    title: const Text('Estadísticas',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsView()));
-                    },
-                  ),
-                  ListTile(
                     leading: const Icon(Icons.person_outline_rounded, color: darkNavy),
                     title: const Text('Mi Perfil',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/profile');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.school_outlined, color: darkNavy),
+                    title: const Text('Academia',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const EducationalView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.analytics_outlined, color: darkNavy),
+                    title: const Text('Estadísticas',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsView()));
                     },
                   ),
                   const Divider(),
