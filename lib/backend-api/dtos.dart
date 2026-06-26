@@ -117,6 +117,7 @@ class CreateAppUserReq {
     required this.firstLastName,
     this.secondLastName,
     this.dateOfBirth,
+    this.avatar,
   });
 
   String id;
@@ -125,6 +126,7 @@ class CreateAppUserReq {
   String firstLastName;
   String? secondLastName;
   DateTime? dateOfBirth;
+  String? avatar;
 
   factory CreateAppUserReq.fromJson(Map<String, dynamic> json) =>
       CreateAppUserReq(
@@ -136,6 +138,7 @@ class CreateAppUserReq {
         dateOfBirth: json["date_of_birth"] == null
             ? null
             : DateTime.parse(json["date_of_birth"]),
+        avatar: json["avatar"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -145,6 +148,7 @@ class CreateAppUserReq {
     "first_last_name": firstLastName,
     "second_last_name": secondLastName,
     "date_of_birth": dateOfBirth?.toIso8601String(),
+    "avatar": avatar,
   };
 
   CreateAppUserReq copyWith({

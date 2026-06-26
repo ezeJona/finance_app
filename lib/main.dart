@@ -6,6 +6,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'backend-api/init_supabase.dart';
 import 'notifications_service.dart';
 import 'pages/home/home_page.dart';
+import 'pages/profile/profile_page.dart';
 import 'pages/start_page.dart';
 import 'pages/user/welcome_page.dart';
 import 'pages/user/login_page.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
         '/login/sign-up': (context) => const SignUpPage(),
         '/setup-user': (context) => const SetupUserPage(),
         '/home': (context) => const HomePage(),
+        '/profile': (context) => const ProfilePage(),
       },
       debugShowCheckedModeBanner: false,
 

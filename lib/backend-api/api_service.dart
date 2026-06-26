@@ -86,6 +86,39 @@ class ApiService {
     }
   }
 
+  static Future<AppUserRes> updateAppUser(String id, CreateAppUserReq req) async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('app_users')
+          .update(req.toJson())
+          .eq('id', id)
+          .select();
+      
+      if (response.isEmpty) throw Exception('No se pudo actualizar el usuario');
+      return AppUserRes.fromJson(response.first);
+    } catch (e) {
+      throw Exception('Failed to update app user: $e');
+    }
+  }
+
+  static Future<String> uploadUserAvatar(String userId, File file) async {
+    try {
+      final fileExt = file.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.${const Uuid().v4()}.$fileExt';
+      final filePath = '$userId/$fileName';
+
+      await _supabase.storage.from('profiles').upload(
+            filePath,
+            file,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      return _supabase.storage.from('profiles').getPublicUrl(filePath);
+    } catch (e) {
+      throw Exception('Failed to upload avatar: $e');
+    }
+  }
+
   static Future<List<MunicipalityRes>?> getMunicipalities() async {
     try {
       final List<dynamic> response = await _supabase.from('municipalities').select();

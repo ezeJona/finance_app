@@ -56,6 +56,10 @@ final productsProvider =
   return ProductsNotifier(ref, business);
 });
 
+final businessProductsProvider = FutureProvider.family<List<ProductRes>, int>((ref, businessId) async {
+  return await InventoryRepository.getProducts(businessId);
+});
+
 class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductRes>>> {
   final Ref ref;
   final BusinessRes? business;

@@ -172,6 +172,16 @@ class AppDrawer extends HookConsumerWidget {
                   ),
                   const Divider(),
                   ListTile(
+                    leading: const Icon(Icons.person_outline_rounded, color: darkNavy),
+                    title: const Text('Perfil',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/profile');
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
                     leading: const Icon(Icons.logout, color: expenseRed),
                     title: const Text(
                       'Cerrar Sesión',
