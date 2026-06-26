@@ -1,64 +1,150 @@
 <div align="center">
-  <a href="https://github.com/Hospired">
-    <img src="https://github.com/Hospired/hospired_admin/blob/main/src/assets/hospired.png" alt="Logo" width="300">
-  </a>
+  <img src="assets/finora f.png" alt="Finora Logo" width="180">
+  <h1>Finora · Tu Aliado Financiero</h1>
+  <p>Asistente virtual inteligente para la gestión integral de finanzas, inventarios y crecimiento empresarial.</p>
+
+  [![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow)](#)
+  [![Versión](https://img.shields.io/badge/version-1.2.1-blue)](#)
+  [![Licencia](https://img.shields.io/badge/licencia-MIT-green)](#)
 </div>
 
-<h3 align="center">Hospired · Asistente Virtual</h3>
-
-<p align="center">
-  Asistente virtual seguro y escalable para la gestión integral de citas médicas, pacientes y recursos hospitalarios.
-</p>
-
----
-![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow)
-![Versión](https://img.shields.io/badge/version-1.0.0-blue)
-![Licencia](https://img.shields.io/badge/licencia-MIT-green)
-
 ---
 
-## Propósito del Proyecto
-Este proyecto consiste en el desarrollo de una aplicación móvil de asistente virtual para Android, diseñada para facilitar la interacción del usuario mediante comandos de voz y respuestas inteligentes. Su objetivo es brindar asistencia rápida en tareas cotidianas como:
+## Índice
+1. [Sobre el Proyecto](#sobre-el-proyecto)
+2. [Características Principales](#características-principales)
+3. [Tecnologías Utilizadas](#tecnologías-utilizadas)
+4. [Estructura del Proyecto](#estructura-del-proyecto)
+5. [Convenciones de Nomenclatura](#convenciones-de-nomenclatura)
+6. [Instalación y Ejecución](#instalación-y-ejecución)
+7. [Módulos del Sistema](#módulos-del-sistema)
 
-- Consultar información (hora, recordatorios, etc.)
-- Realizar acciones en el dispositivo (abrir apps)
-- Proporcionar respuestas conversacionales usando inteligencia artificial
+---
 
-El proyecto busca ofrecer una experiencia accesible, intuitiva y adaptable a diferentes necesidades del usuario.
+## Sobre el Proyecto
+**Finora** es una aplicación móvil desarrollada en Flutter diseñada para microempresarios y emprendedores. Su objetivo es simplificar la administración del negocio mediante herramientas de control financiero, gestión de stock y educación estratégica, todo potenciado por inteligencia artificial.
+
+---
+
+## Características Principales
+- **Control de Flujo de Caja:** Registro detallado de ingresos y egresos.
+- **Gestión de Inventario:** Catálogo visual con carga de imágenes a la nube.
+- **Seguimiento de Deudas:** Control de cuentas por cobrar y por pagar.
+- **Asistente Virtual IA:** Integración con OpenAI para consultas y consejos.
+- **Academia del Negocio:** Módulos de micro-aprendizaje sobre finanzas y seguridad.
+- **Reportes Profesionales:** Exportación de balances a Excel.
+- **Modo Offline:** Sincronización automática al recuperar conexión.
+
+---
+
+## Tecnologías Utilizadas
+- **Lenguaje:** Dart
+- **Framework:** Flutter
+- **Base de Datos & Auth:** Supabase (PostgreSQL, Auth, Storage)
+- **Gestión de Estado:** Riverpod (Hooks & Providers)
+- **Persistencia Local:** Hive & SharedPreferences
+- **IA:** OpenAI API (GPT-4o)
+- **Otros:** Excel (Reportes), CachedNetworkImage, fl_chart.
+
+---
+
+## Estructura del Proyecto
+```plaintext
+lib/
+├── backend-api/        # DTOs, Servicios de API y lógica de sincronización.
+├── models/             # Modelos de datos locales.
+├── pages/              # Pantallas de la aplicación organizadas por módulo.
+│   ├── academy/        # Modo educativo y Academia.
+│   ├── chat/           # Asistente virtual (IA).
+│   ├── dashboard/      # Balance general y flujo de caja.
+│   ├── debts/          # Gestión de cuentas por cobrar/pagar.
+│   ├── inventory/      # Control de stock y catálogo.
+│   ├── profile/        # Gestión de perfil y resumen multinegocio.
+│   ├── statistics/     # Reportes gráficos de rendimiento.
+│   └── user/           # Flujos de Autenticación (Login, Sign-up, Setup).
+├── providers/          # Lógica de negocio y gestión de estado (Riverpod).
+├── widgets/            # Componentes de UI reutilizables.
+└── utilities/          # Configuraciones globales y helpers.
+```
+
+---
+
+## Convenciones de Nomenclatura
+- **Clases y Tipos:** `PascalCase` (ej: `ProductRepository`).
+- **Variables y Funciones:** `camelCase` (ej: `calculateProfit()`).
+- **Archivos:** `snake_case` (ej: `inventory_view.dart`).
+- **Constantes:** `camelCase` o `UPPER_SNAKE_CASE` según contexto (ej: `primaryYellow`).
 
 ---
 
 ## Instalación y Ejecución
 
 ### Requisitos Previos
-- Android Studio Flamingo o superior
-- JDK 11 o superior
-- Dispositivo Android API 23 (Android 6.0) o superior (físico o emulador)
-  
-### Instalación
-1. Clonar el repositorio:
-2. 
-```bash
-git clone https://github.com/usuario/asistente-virtual-android.git
+- **Flutter SDK:** ^3.9.2
+- **Android Studio / VS Code**
+- **Supabase Project:** Configurar buckets de `profiles` y `products`.
 
-cd asistente-virtual-android
+### Pasos
+1. **Clonar el repositorio:**
+   <br>
+   ```bash
+   git clone https://github.com/ezeJona/finance_app.git
+   
+   cd finance_app
+   ```
+2. **Instalar dependencias:**
+   <br>
+   ```bash
+   flutter pub get
+   ```
+3. **Configurar variables de entorno:**
+   <br><br>
+   Asegúrate de tener las claves de Supabase y OpenAI en los archivos de configuración correspondientes en `lib`.
+   <br><br>
+    Crea un archivo `supabase_configuration.dart` en la raíz del proyecto con la siguiente configuración mínima:
+   <br>
+    ```env
+    const String supabaseUrl = 'https://xxxx.supabase.co'
+    const String supabaseAnonKey = 'eyJhbGciOi...'
+    ```
+   <br><br>
+   Crea un archivo `openai_configuration.dart` en la raíz del proyecto con la siguiente configuración mínima:
+   <br>
+    ```env
+    const openAiApiKeyDev = "sk-x"
+    ```
+4. **Ejecutar:**
+   <br>
+   ```bash
+   flutter run
+   ```
 
-```
-3. Abrir el proyecto en Android Studio
-   
-```
-- Seleccionar File > Open…
-- Elegir la carpeta del proyecto
-```
-3. Sincronizar Gradle automáticamente. Android Studio descargará las dependencias necesarias.
-   
-### Ejecución
-1. Conectar un dispositivo Android o iniciar un emulador.
-2. En Android Studio, presionar el botón Run.
-3. La aplicación se instalará y abrirá automáticamente en el dispositivo.
-4. Inicie sección con la cuenta de administrador creado en hospired_admin
-   
-### Próximas Mejoras
-- Integración con modelos de IA avanzados (ChatGPT / Gemini)
-- Personalización de voz y respuestas
-- Compatibilidad con widgets y accesibilidad
+---
+
+## Módulos del Sistema
+
+### Balance y Finanzas
+Controla tus ingresos y gastos diarios. Visualiza tu saldo real y filtra por periodos para entender hacia dónde va tu dinero.
+
+### Inventario Inteligente
+Catálogo visual donde puedes subir fotos de tus productos. Incluye alertas de stock mínimo para que nunca te quedes sin mercancía.
+
+### Gestión de Deudas
+Registra abonos y saldos pendientes. Ideal para negocios que ofrecen crédito a sus clientes o manejan cuentas con proveedores.
+
+### Academia Finora
+Sección estática educativa con consejos sobre cómo poner precios, separar gastos personales y evitar estafas digitales (especialmente fraudes de WhatsApp).
+
+### Asistente Virtual
+Chatbot inteligente que entiende el contexto de tu negocio y te ayuda a tomar mejores decisiones financieras.
+
+---
+
+## Próximas Mejoras
+- Escaneo de códigos de barras para productos.
+- Notificaciones push para recordatorios de pago de deudas.
+- Venta en linea
+---
+<div align="center">
+  <p>Desarrollado con ❤️ para empoderar a los comerciantes.</p>
+</div>
