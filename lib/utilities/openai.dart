@@ -5,8 +5,10 @@ import 'package:http/http.dart' as http;
 import '../../openai_configuration.dart';
 
 Future<String?> requestOpenAiResponse(
-  List<Map<String, String>> messages,
-) async {
+  List<Map<String, String>> messages, {
+  String model = 'gpt-4o-mini', // Updated to a more efficient/modern model
+  double temperature = 0.7,
+}) async {
   final apiKey = openAiApiKeyDev;
   final url = Uri.parse('https://api.openai.com/v1/chat/completions');
 
@@ -16,9 +18,9 @@ Future<String?> requestOpenAiResponse(
   };
 
   final body = jsonEncode({
-    'model': 'gpt-3.5-turbo',
+    'model': model,
     'messages': messages,
-    'temperature': 0.7,
+    'temperature': temperature,
   });
 
   final response = await http.post(url, headers: headers, body: body);

@@ -14,4 +14,5 @@ Future<void> initHive() async {
   await Hive.openBox('transaction_items_cache');
   await Hive.openBox('analytics_cache');
   await Hive.openBox('sync_queue');
+  await Hive.openBox('chat_history');
 }
