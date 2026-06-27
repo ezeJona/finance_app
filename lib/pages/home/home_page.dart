@@ -6,7 +6,6 @@ import '../../breakpoints.dart';
 import '../../colors.dart';
 import '../../providers/auth_user.dart';
 import '../../providers/app_user.dart';
-import '../../providers/business.dart';
 import '../../text_styles.dart';
 import '../dashboard/balance_page.dart';
 import '../debts/debts_page.dart';
@@ -16,6 +15,7 @@ import '../inventory/inventory_view.dart';
 import 'bottom_nav_bar.dart';
 import 'side_nav_bar.dart';
 import '../../providers/sync_provider.dart';
+import '../../providers/navigation.dart';
 
 class HomePage extends HookConsumerWidget {
   const HomePage({super.key});
@@ -31,7 +31,7 @@ class HomePage extends HookConsumerWidget {
     final authUser = ref.watch(authUserProvider);
     final previousAuthUser = usePrevious(authUser);
 
-    final selectedNavIndex = useState<int>(0);
+    final selectedNavIndex = ref.watch(navigationIndexProvider);
 
     final fetchAppUser = useCallback(() async {
       if (authUser != null) {
@@ -41,6 +41,7 @@ class HomePage extends HookConsumerWidget {
           final appUserRes = await ref.read(appUserProvider.notifier).fetch();
           if (appUserRes == null) {
             // go to setup as the app user is not created yet
+            if (!context.mounted) return;
             Navigator.pushNamedAndRemoveUntil(
               context,
               '/setup-user',
@@ -71,7 +72,7 @@ class HomePage extends HookConsumerWidget {
     }, [authUser]);
 
     final onSelectNavigationIndex = useCallback((int index) {
-      selectedNavIndex.value = index;
+      ref.read(navigationIndexProvider.notifier).state = index;
     }, []);
 
     if ((appUser == null) && (loading.value || loadingError.value)) {
@@ -114,7 +115,7 @@ class HomePage extends HookConsumerWidget {
     }
 
   // Mapeo dinámico de pantallas actualizado
-    Widget _getScreen(int index) {
+    Widget getScreen(int index) {
       switch (index) {
         case 0:
           return const BalancePage();
@@ -143,17 +144,17 @@ class HomePage extends HookConsumerWidget {
       body: Row(
         children: [
           SideNavBar(
-            selectedIndex: selectedNavIndex.value,
+            selectedIndex: selectedNavIndex,
             onTap: (index) => onSelectNavigationIndex(index),
           ),
-          Expanded(child: _getScreen(selectedNavIndex.value)),
+          Expanded(child: getScreen(selectedNavIndex)),
         ],
       ),
     )
         : Scaffold(
-      body: _getScreen(selectedNavIndex.value),
+      body: getScreen(selectedNavIndex),
       bottomNavigationBar: BottomNavBar(
-        selectedIndex: selectedNavIndex.value,
+        selectedIndex: selectedNavIndex,
         onTap: (index) => onSelectNavigationIndex(index),
       ),
     );

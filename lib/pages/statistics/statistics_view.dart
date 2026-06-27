@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_drawer.dart';
 import '../../providers/analytics.dart';
@@ -9,6 +10,9 @@ import '../../providers/transactions.dart';
 import '../../providers/debts.dart';
 import '../../providers/transaction_items.dart';
 import '../../services/report_export_service.dart';
+import '../../providers/ai_analysis.dart';
+import '../../providers/navigation.dart';
+import '../../colors.dart';
 
 class StatisticsView extends HookConsumerWidget {
   const StatisticsView({super.key});
@@ -83,7 +87,7 @@ class StatisticsView extends HookConsumerWidget {
                     const SizedBox(height: 24),
 
                     // Sección 4: Panel de Predicción
-                    _buildPredictionCard(analytics.monthlyPrediction, formatter),
+                    _buildPredictionCard(ref, analytics.monthlyPrediction, formatter),
                     const SizedBox(height: 24),
 
                     // Sección 5: Mesa de Control
@@ -93,6 +97,10 @@ class StatisticsView extends HookConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     _buildControlTable(analytics, formatter),
+                    const SizedBox(height: 24),
+
+                    // Sección AI: Atlas Advisor
+                    _buildAIAdvisorCard(context, ref),
                     const SizedBox(height: 30),
 
                     // Botón de Exportación
@@ -189,6 +197,91 @@ class StatisticsView extends HookConsumerWidget {
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    );
+  }
+
+  Widget _buildAIAdvisorCard(BuildContext context, WidgetRef ref) {
+    final aiAnalysis = ref.watch(aiStatisticsAnalysisProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: HospiredColors.primary.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: HospiredColors.primary.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: HospiredColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome, color: HospiredColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Análisis de Atlas IA",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: HospiredColors.primary,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  ref.read(navigationIndexProvider.notifier).state = 3; // Go to Chat
+                },
+                child: const Row(
+                  children: [
+                    Text("Chat Completo", style: TextStyle(fontSize: 12)),
+                    Icon(Icons.chevron_right, size: 16),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          aiAnalysis.when(
+            data: (text) => text != null
+                ? MarkdownBody(
+                    data: text,
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
+                    ),
+                  )
+                : const Text("No se pudo generar el análisis."),
+            loading: () => Center(
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: HospiredColors.primary),
+                  ),
+                  const SizedBox(height: 10),
+                  Text("Atlas está analizando tus datos...", 
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic)),
+                ],
+              ),
+            ),
+            error: (err, stack) => Text("Error al cargar análisis: $err"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -542,7 +635,7 @@ class StatisticsView extends HookConsumerWidget {
     );
   }
 
-  Widget _buildPredictionCard(double prediction, NumberFormat formatter) {
+  Widget _buildPredictionCard(WidgetRef ref, double prediction, NumberFormat formatter) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -573,9 +666,38 @@ class StatisticsView extends HookConsumerWidget {
             style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
           ),
           const SizedBox(height: 8),
-          Text(
-            formatter.format(prediction),
-            style: const TextStyle(color: primaryYellow, fontSize: 28, fontWeight: FontWeight.w900),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatter.format(prediction),
+                style: const TextStyle(color: primaryYellow, fontSize: 28, fontWeight: FontWeight.w900),
+              ),
+              InkWell(
+                onTap: () {
+                  ref.read(navigationIndexProvider.notifier).state = 3;
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: primaryYellow, size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        "¿Cómo mejorar?",
+                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
