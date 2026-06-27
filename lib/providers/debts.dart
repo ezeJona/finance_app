@@ -43,6 +43,8 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
     }
     
     try {
+      if (!await SyncService.isOnline()) return;
+      
       final debts = await ApiService.fetchDebtsByBusiness(businessId!);
       SyncService.cacheDebts(businessId!, debts);
       state = AsyncValue.data(debts);
@@ -132,7 +134,16 @@ class DebtsNotifier extends StateNotifier<AsyncValue<List<DebtRes>>> {
 }
 
 final debtPaymentsProvider = FutureProvider.family<List<DebtPaymentRes>, String>((ref, debtId) async {
-  return await ApiService.fetchDebtPayments(debtId);
+  final cached = SyncService.getCachedDebtPayments(debtId);
+  try {
+    if (!await SyncService.isOnline()) return cached;
+    
+    final payments = await ApiService.fetchDebtPayments(debtId);
+    SyncService.cacheDebtPayments(debtId, payments);
+    return payments;
+  } catch (e) {
+    return cached;
+  }
 });
 
 final debtsSummaryProvider = Provider<({double toCollect, double toPay, int debtors, int creditors})>((ref) {

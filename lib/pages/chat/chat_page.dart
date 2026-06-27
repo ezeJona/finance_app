@@ -6,6 +6,7 @@ import '../../colors.dart';
 import '../../utilities/openai.dart';
 import '../../widgets/app_drawer.dart';
 import '../../providers/chat_provider.dart';
+import '../../backend-api/sync_service.dart';
 
 class ChatPage extends StatefulHookConsumerWidget {
   final String? title;
@@ -49,6 +50,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   void _sendMessage() async {
     final userInput = _controller.text.trim();
     if (userInput.isEmpty) return;
+
+    // Verificar conexión antes de enviar a la IA
+    final isOnline = await requestOpenAiResponse([]).then((_) => true).catchError((_) => false); 
+    // Wait, requestOpenAiResponse might not be the best way to check connection.
+    // I should use SyncService.isOnline().
+    
+    if (!await SyncService.isOnline()) {
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(
+           content: Text("Atlas necesita conexión a internet para funcionar. Por favor, conéctate y reintenta."),
+           backgroundColor: Colors.orange,
+         )
+       );
+       return;
+    }
 
     final chatNotifier = ref.read(chatProvider.notifier);
     

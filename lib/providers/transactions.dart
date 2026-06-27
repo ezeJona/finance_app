@@ -72,6 +72,13 @@ class TransactionsNotifier extends StateNotifier<AsyncValue<List<TransactionRes>
     }
 
     try {
+      if (!await SyncService.isOnline()) {
+         if (cached.isNotEmpty) {
+           state = AsyncValue.data(cached);
+           return;
+         }
+      }
+
       String? apiType = filter.flowType;
       if (apiType == 'sales') {
         apiType = 'income'; // Para el API, las ventas son ingresos
@@ -165,6 +172,8 @@ final historicTransactionsProvider = FutureProvider<List<TransactionRes>>((ref) 
   final cached = SyncService.getCachedTransactions(business.id);
   
   try {
+     if (!await SyncService.isOnline()) return cached;
+
      final fresh = await ApiService.getTransactionsByBusiness(business.id);
      SyncService.cacheTransactions(business.id, fresh);
      return fresh;

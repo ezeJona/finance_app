@@ -74,6 +74,8 @@ final executiveFinancialsProvider = FutureProvider<List<ExecutiveFinancialsRes>>
   final cached = SyncService.getCachedExecutiveFinancials(business.id);
   
   try {
+    if (!await SyncService.isOnline()) return cached;
+
     final now = DateTime.now();
     final start = DateTime(now.year - 1, now.month, now.day);
     final end = DateTime(now.year, now.month, now.day, 23, 59, 59);

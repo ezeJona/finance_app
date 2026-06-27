@@ -9,6 +9,7 @@ class SyncService {
   static final _syncBox = Hive.box('sync_queue');
   static final _txBox = Hive.box('transactions_cache');
   static final _debtsBox = Hive.box('debts_cache');
+  static final _debtPaymentsBox = Hive.box('debt_payments_cache');
   static final _categoriesBox = Hive.box('categories_cache');
   static final _productsBox = Hive.box('products_cache');
   static final _itemsBox = Hive.box('transaction_items_cache');
@@ -28,6 +29,7 @@ class SyncService {
       'endpoint_type': type,
       'payload': jsonEncode(payload),
       'created_at': DateTime.now().toIso8601String(),
+      'retries': 0,
     });
   }
 
@@ -50,7 +52,7 @@ class SyncService {
         ApiService.getAllTransactionItemsByBusiness(businessId),
         ApiService.getExecutiveFinancials(businessId, start, end),
         ApiService.getInventoryPerformance(businessId),
-      ]);
+      ]).timeout(const Duration(seconds: 15));
 
       await cacheTransactions(businessId, results[0] as List<TransactionRes>);
       await cacheDebts(businessId, results[1] as List<DebtRes>);
@@ -71,9 +73,17 @@ class SyncService {
     if (keys.isEmpty) return;
 
     for (var key in keys) {
-      final item = _syncBox.get(key);
+      final item = Map<String, dynamic>.from(_syncBox.get(key));
       final type = item['endpoint_type'];
       final payload = jsonDecode(item['payload']);
+      final retries = item['retries'] ?? 0;
+
+      if (retries > 5) {
+        // Si ha fallado muchas veces, lo descartamos para no bloquear la UI
+        // En una app real, podríamos moverlo a una caja de "errores" para inspección
+        await _syncBox.delete(key);
+        continue;
+      }
 
       try {
         switch (type) {
@@ -105,14 +115,12 @@ class SyncService {
             await ApiService.createTransactionItems(items);
             break;
           case 'update_product_stock':
-            final id = payload['id'];
-            final stock = payload['stock'];
             await ApiService.updateProduct(payload['id'], CreateProductReq(
               businessId: payload['business_id'],
               name: payload['name'],
               costPrice: payload['cost_price'],
               salePrice: payload['sale_price'],
-              stock: stock,
+              stock: payload['stock'],
               minStock: payload['min_stock'],
             ));
             break;
@@ -122,7 +130,9 @@ class SyncService {
         }
         await _syncBox.delete(key);
       } catch (e) {
-        // En caso de error, lo dejamos en la cola para el próximo intento
+        print("Error syncing item $key: $e");
+        item['retries'] = retries + 1;
+        await _syncBox.put(key, item);
       }
     }
   }
@@ -149,6 +159,17 @@ class SyncService {
     final data = _debtsBox.get(businessId);
     if (data == null) return [];
     return (data as List).map((json) => DebtRes.fromJson(Map<String, dynamic>.from(json))).toList();
+  }
+
+  static Future<void> cacheDebtPayments(String debtId, List<DebtPaymentRes> payments) async {
+    final data = payments.map((p) => p.toJson()).toList();
+    await _debtPaymentsBox.put(debtId, data);
+  }
+
+  static List<DebtPaymentRes> getCachedDebtPayments(String debtId) {
+    final data = _debtPaymentsBox.get(debtId);
+    if (data == null) return [];
+    return (data as List).map((json) => DebtPaymentRes.fromJson(Map<String, dynamic>.from(json))).toList();
   }
 
   static Future<void> cacheCategories(int businessId, List<ProductCategoryRes> categories) async {

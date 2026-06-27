@@ -23,6 +23,20 @@ final syncProvider = Provider<void>((ref) {
     }
   });
 
+  // Temporizador para reintentar sincronización cada 5 minutos si hay elementos en la cola
+  Timer? periodicTimer;
+  if (connectivity == ConnectivityStatus.isConnected) {
+    periodicTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      SyncService.processQueue().then((_) {
+        _invalidateAll(ref);
+      });
+    });
+  }
+
+  ref.onDispose(() {
+    periodicTimer?.cancel();
+  });
+
   // Reaccionar al cambio de negocio
   ref.listen(businessProvider, (previous, next) {
     if (next != null && connectivity == ConnectivityStatus.isConnected) {
