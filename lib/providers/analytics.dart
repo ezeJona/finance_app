@@ -29,8 +29,12 @@ class AnalyticsState {
   final double directExpenses;
   final double netCashBalance;
   final double inventorySales;
+  final double cashSales;
+  final double creditSales;
   final double cogs;
   final double monthlyPrediction;
+  final double totalToCollect;
+  final double totalToPay;
   final Map<String, double> expensesByCategory;
   final List<Insight> insights;
   final String periodLabel;
@@ -46,8 +50,12 @@ class AnalyticsState {
     required this.directExpenses,
     required this.netCashBalance,
     required this.inventorySales,
+    required this.cashSales,
+    required this.creditSales,
     required this.cogs,
     required this.monthlyPrediction,
+    required this.totalToCollect,
+    required this.totalToPay,
     required this.expensesByCategory,
     required this.insights,
     required this.periodLabel,
@@ -129,8 +137,12 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
     directExpenses: 0,
     netCashBalance: 0,
     inventorySales: 0,
+    cashSales: 0,
+    creditSales: 0,
     cogs: 0,
     monthlyPrediction: 0,
+    totalToCollect: 0,
+    totalToPay: 0,
     expensesByCategory: {},
     insights: [],
     periodLabel: periodLabel,
@@ -161,6 +173,20 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
   final directExpenses = rangeFinancials.fold(0.0, (sum, f) => sum + f.directExpenses);
   final cogs = rangeFinancials.fold(0.0, (sum, f) => sum + f.totalCOGS);
 
+  final filteredDebts = allDebts.where((d) => 
+    (d.createdAt.isAtSameMomentAs(startDate) || d.createdAt.isAfter(startDate)) &&
+    (d.createdAt.isAtSameMomentAs(endDate) || d.createdAt.isBefore(endDate))
+  ).toList();
+
+  // Cálculo manual de ventas contado vs crédito para la Mesa de Control
+  final cashSales = filteredTransactions
+      .where((tx) => tx.type == 'income' && (tx.description?.startsWith('Venta') ?? false))
+      .fold(0.0, (sum, tx) => sum + tx.amount);
+
+  final creditSales = filteredDebts
+      .where((d) => d.type == 'to_collect' && (d.description?.startsWith('Venta') ?? false))
+      .fold(0.0, (sum, d) => sum + d.totalAmount);
+
   final totalSales = inventorySales;
   final realProfit = totalSales - cogs;
   final profitMargin = totalSales > 0 ? (realProfit / totalSales) * 100 : 0.0;
@@ -183,13 +209,26 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
     expensesByCategory[tx.category] = (expensesByCategory[tx.category] ?? 0.0) + tx.amount;
   }
 
-  final filteredDebts = allDebts.where((d) => 
-    (d.createdAt.isAtSameMomentAs(startDate) || d.createdAt.isAfter(startDate)) &&
-    (d.createdAt.isAtSameMomentAs(endDate) || d.createdAt.isBefore(endDate))
-  ).toList();
+
+  final totalToCollect = filteredDebts
+      .where((d) => d.type == 'to_collect' && d.status == 'pending')
+      .fold(0.0, (sum, d) => sum + d.remainingAmount);
+  
+  final totalToPay = filteredDebts
+      .where((d) => d.type == 'to_pay' && d.status == 'pending')
+      .fold(0.0, (sum, d) => sum + d.remainingAmount);
 
   // 4. Insights Inteligentes
   final List<Insight> insights = [];
+
+  // Insight: Ganancia Atrapada en Deudas
+  if (totalToCollect > realProfit * 0.5 && realProfit > 0) {
+    insights.add(Insight(
+      title: "Ganancia Atrapada",
+      message: "Tienes C\$ ${totalToCollect.toStringAsFixed(0)} en cuentas por cobrar. Esto es más del 50% de tu utilidad estimada. ¡Gestiona tus cobros!",
+      type: InsightType.warning,
+    ));
+  }
 
   if (operationalLoad > 40) {
     insights.add(Insight(
@@ -235,8 +274,12 @@ final analyticsProvider = Provider<AnalyticsState>((ref) {
     directExpenses: directExpenses,
     netCashBalance: netCashBalance,
     inventorySales: inventorySales,
+    cashSales: cashSales,
+    creditSales: creditSales,
     cogs: cogs,
     monthlyPrediction: monthlyPrediction,
+    totalToCollect: totalToCollect,
+    totalToPay: totalToPay,
     expensesByCategory: expensesByCategory,
     insights: insights,
     periodLabel: periodLabel,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/business.dart';
@@ -492,7 +493,13 @@ class BalancePage extends HookConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: InkWell(
-        onTap: isInventorySale ? () => _showDigitalInvoice(context, ref, tx, currency) : null,
+        onTap: () {
+          if (isInventorySale) {
+             _showDigitalInvoice(context, ref, tx, currency);
+          } else if (tx.debtPaymentId != null) {
+             _showDebtPaymentInfo(context, ref, tx, currency);
+          }
+        },
         borderRadius: BorderRadius.circular(15),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -655,6 +662,17 @@ class BalancePage extends HookConsumerWidget {
       ),
     );
   }
+
+  void _showDebtPaymentInfo(BuildContext context, WidgetRef ref, TransactionRes tx, String currency) {
+    final business = ref.read(businessProvider);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DebtPaymentInvoiceModal(tx: tx, business: business, currency: currency),
+    );
+  }
+
 
   Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, BusinessRes? business) {
     return Align(
@@ -1020,6 +1038,136 @@ class _DigitalInvoiceModal extends ConsumerWidget {
         "*Total:* ${formatter.format(tx.amount)}";
     
     Share.share(message);
+  }
+}
+
+class _DebtPaymentInvoiceModal extends HookConsumerWidget {
+  final TransactionRes tx;
+  final BusinessRes? business;
+  final String currency;
+
+  const _DebtPaymentInvoiceModal({required this.tx, required this.business, required this.currency});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currencyFormatter = NumberFormat.currency(symbol: currency == 'USD' ? '\$ ' : 'C\$ ', decimalDigits: 2);
+    
+    // Future para obtener el debtId desde el abono
+    final debtIdFuture = useMemoized(() async {
+      if (tx.debtPaymentId == null) return null;
+      try {
+        final payment = await ApiService.fetchDebtPaymentById(tx.debtPaymentId!);
+        return payment.debtId;
+      } catch (e) {
+        return null;
+      }
+    }, [tx.debtPaymentId]);
+
+    final debtIdSnapshot = useFuture(debtIdFuture);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.receipt_long_rounded, color: BalancePage.darkNavy, size: 32),
+            const SizedBox(height: 12),
+            const Text(
+              "Detalle de Abono",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: BalancePage.darkNavy),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Pago realizado por ${tx.contactName ?? 'Cliente'}",
+              style: const TextStyle(color: BalancePage.textGray, fontSize: 13),
+            ),
+            const Divider(height: 32),
+            
+            // Info del abono
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Monto Abonado", style: TextStyle(fontWeight: FontWeight.w500)),
+                Text(
+                  currencyFormatter.format(tx.amount),
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: BalancePage.incomeGreen, fontSize: 16),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Fecha", style: TextStyle(color: BalancePage.textGray, fontSize: 13)),
+                Text(
+                  DateFormat("dd/MM/yyyy HH:mm").format(tx.transactionDate),
+                  style: const TextStyle(color: BalancePage.textGray, fontSize: 13),
+                ),
+              ],
+            ),
+            
+            const Divider(height: 32),
+            const Text(
+              "PRODUCTOS DE LA VENTA ORIGINAL",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: BalancePage.textGray, letterSpacing: 0.5),
+            ),
+            const SizedBox(height: 16),
+
+            if (debtIdSnapshot.connectionState == ConnectionState.waiting)
+              const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+            else if (debtIdSnapshot.hasData && debtIdSnapshot.data != null)
+              Consumer(
+                builder: (context, ref, child) {
+                  final itemsAsync = ref.watch(transactionDetailsProvider(debtIdSnapshot.data!));
+                  return itemsAsync.when(
+                    data: (items) {
+                      if (items.isEmpty) return const Text("No se encontraron productos.");
+                      return Column(
+                        children: items.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(item.productName, style: const TextStyle(fontSize: 14)),
+                              ),
+                              Text(
+                                "${item.item.quantity.toInt()} x ${currencyFormatter.format(item.item.unitPrice)}",
+                                style: const TextStyle(color: BalancePage.textGray, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        )).toList(),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => Text("Error al cargar productos: $e"),
+                  );
+                },
+              )
+            else
+              const Text("No se pudo vincular con la factura original.", style: TextStyle(color: BalancePage.textGray, fontSize: 12)),
+
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                style: FilledButton.styleFrom(backgroundColor: BalancePage.darkNavy, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                child: const Text("CERRAR"),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

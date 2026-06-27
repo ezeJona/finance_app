@@ -403,6 +403,25 @@ class ApiService {
     }
   }
 
+  static Future<DebtPaymentRes> fetchDebtPaymentById(String id) async {
+    try {
+      final response = await _supabase
+          .from('debt_payments')
+          .select()
+          .eq('id', id)
+          .single();
+      return DebtPaymentRes.fromJson(response);
+    } catch (e) {
+      // Si falla, intentamos una búsqueda normal
+      final List<dynamic> response = await _supabase
+          .from('debt_payments')
+          .select()
+          .eq('id', id);
+      if (response.isEmpty) throw Exception('Abono no encontrado: $id');
+      return DebtPaymentRes.fromJson(response.first);
+    }
+  }
+
   static Future<List<DebtPaymentRes>> fetchDebtPayments(String debtId) async {
     try {
       final List<dynamic> response = await _supabase

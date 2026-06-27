@@ -222,7 +222,7 @@ class StatisticsView extends HookConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Margen Producto", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text("Ganancia", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 8),
                       Text(
                         formatter.format(analytics.realProfit),
@@ -232,11 +232,18 @@ class StatisticsView extends HookConsumerWidget {
                           color: analytics.realProfit >= 0 ? incomeGreen : expenseRed
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "*Incluye ventas no cobradas",
+                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            _buildPendingAccountsCard(analytics, formatter),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -275,6 +282,68 @@ class StatisticsView extends HookConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPendingAccountsCard(AnalyticsState analytics, NumberFormat formatter) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.amber, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                "Cuentas Pendientes",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: darkNavy),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Por Cobrar (Ventas)", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(
+                      formatter.format(analytics.totalToCollect),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: incomeGreen, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 30, color: Colors.amber.shade200),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Por Pagar", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(
+                      formatter.format(analytics.totalToPay),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: expenseRed, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Dinero 'atrapado' en deudas que aún no son efectivo.",
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+          ),
+        ],
       ),
     );
   }
@@ -522,11 +591,13 @@ class StatisticsView extends HookConsumerWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildTableRow("Ventas Brutas Productos", analytics.inventorySales, formatter),
+            _buildTableRow("Ventas al Contado (+)", analytics.cashSales, formatter),
             const Divider(),
-            _buildTableRow("Inversión en Mercancía", -analytics.cogs, formatter, isNegative: true),
+            _buildTableRow("Ventas al Crédito (+)", analytics.creditSales, formatter),
             const Divider(),
-            _buildTableRow("Margen Neto de Ganancia", analytics.realProfit, formatter, isIncome: true),
+            _buildTableRow("Inversión en Mercancía (-)", -analytics.cogs, formatter, isNegative: true),
+            const Divider(),
+            _buildTableRow("Ganancia Neta (=)", analytics.realProfit, formatter, isIncome: true),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import '../../providers/business.dart';
 import '../../providers/debts.dart';
 import '../../providers/transactions.dart';
 import '../../providers/sales_profit.dart';
+import '../../providers/transaction_items.dart';
 import '../../backend-api/dtos.dart';
 import '../../backend-api/sync_service.dart';
 import '../../widgets/app_drawer.dart';
@@ -847,6 +848,44 @@ class _DebtDetailsModal extends ConsumerWidget {
           _buildInfoRow('Saldo Restante', formatter.format(liveDebt.remainingAmount), isBold: true),
           if (liveDebt.dueDate != null)
             _buildInfoRow('Fecha de Vencimiento', DateFormat('dd/MM/yyyy').format(liveDebt.dueDate!)),
+          
+          // Inyectar productos si es una venta
+          if (liveDebt.description != null && liveDebt.description!.startsWith('Venta')) ...[
+            const Divider(height: 32),
+            const Text(
+              'PRODUCTOS DE LA VENTA',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: DebtsPage.textGray, letterSpacing: 0.5),
+            ),
+            const SizedBox(height: 12),
+            Consumer(
+              builder: (context, ref, child) {
+                final itemsAsync = ref.watch(transactionDetailsProvider(liveDebt.id));
+                return itemsAsync.when(
+                  data: (items) {
+                    if (items.isEmpty) return const Text("No hay detalle de productos.", style: TextStyle(fontSize: 12, color: DebtsPage.textGray));
+                    return Column(
+                      children: items.map((item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(child: Text(item.productName, style: const TextStyle(fontSize: 14))),
+                            Text(
+                              "${item.item.quantity.toInt()} x ${formatter.format(item.item.unitPrice)}",
+                              style: const TextStyle(color: DebtsPage.textGray, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                    );
+                  },
+                  loading: () => const Center(child: LinearProgressIndicator()),
+                  error: (e, st) => Text("Error: $e", style: const TextStyle(fontSize: 12, color: DebtsPage.expenseRed)),
+                );
+              },
+            ),
+          ],
+
           const Divider(height: 32),
           const Text(
             'HISTORIAL DE ABONOS',
@@ -872,6 +911,7 @@ class _DebtDetailsModal extends ConsumerWidget {
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
+                      onTap: () => _showPaymentInfo(context, payment, formatter),
                       leading: Icon(
                         isLatest ? Icons.check_circle_outline : Icons.history, 
                         color: isLatest ? DebtsPage.incomeGreen : DebtsPage.textGray.withOpacity(0.5)
@@ -926,6 +966,33 @@ class _DebtDetailsModal extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  void _showPaymentInfo(BuildContext context, DebtPaymentRes payment, NumberFormat formatter) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Detalle del Abono', style: TextStyle(fontWeight: FontWeight.bold, color: DebtsPage.darkNavy)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoRow('Monto', formatter.format(payment.amount), isBold: true),
+            const SizedBox(height: 8),
+            _buildInfoRow('Método', payment.paymentMethod),
+            const SizedBox(height: 8),
+            _buildInfoRow('Fecha', DateFormat('dd/MM/yyyy HH:mm').format(payment.paymentDate)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CERRAR', style: TextStyle(color: DebtsPage.darkNavy, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
