@@ -151,6 +151,15 @@ class AppDrawer extends HookConsumerWidget {
                   const Divider(),
                   _buildCategoryHeader("HERRAMIENTAS"),
                   ListTile(
+                    leading: const Icon(Icons.emoji_events_outlined, color: darkNavy),
+                    title: const Text('Mis Logros',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/profile', arguments: {'scrollTo': 'achievements'});
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.person_outline_rounded, color: darkNavy),
                     title: const Text('Mi Perfil',
                         style: TextStyle(fontWeight: FontWeight.bold)),

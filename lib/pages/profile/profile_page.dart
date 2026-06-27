@@ -11,6 +11,7 @@ import '../../providers/auth_user.dart';
 import '../../providers/businesses.dart';
 import '../../providers/business.dart';
 import '../../providers/inventory.dart';
+import '../../providers/achievements.dart';
 import '../../providers/destroy_session.dart';
 import '../../widgets/app_drawer.dart';
 
@@ -91,6 +92,8 @@ class ProfilePage extends HookConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  _buildAchievementsSection(ref),
+                  const SizedBox(height: 32),
                   _buildSectionTitle("Mis Negocios & Catálogos"),
                   const SizedBox(height: 16),
                   
@@ -296,6 +299,95 @@ class ProfilePage extends HookConsumerWidget {
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     }
+  }
+
+  Widget _buildAchievementsSection(WidgetRef ref) {
+    final achievements = ref.watch(achievementsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle("Logros"),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: achievements.map((a) => _AchievementBadge(achievement: a)).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AchievementBadge extends StatelessWidget {
+  final Achievement achievement;
+
+  const _AchievementBadge({required this.achievement});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUnlocked = achievement.isUnlocked;
+    final color = isUnlocked ? const Color(0xFFF1C40F) : Colors.grey.shade300;
+    final iconColor = isUnlocked ? Colors.white : Colors.grey.shade500;
+
+    return Tooltip(
+      message: achievement.description,
+      triggerMode: TooltipTriggerMode.tap,
+      child: Container(
+        width: 85,
+        margin: const EdgeInsets.only(right: 12),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isUnlocked ? color : Colors.grey.shade100,
+                shape: BoxShape.circle,
+                boxShadow: isUnlocked ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ] : null,
+              ),
+              child: Icon(
+                achievement.icon,
+                color: iconColor,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              achievement.title,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isUnlocked ? const Color(0xFF2C3E50) : Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
