@@ -117,9 +117,6 @@ class ProductFormPage extends HookConsumerWidget {
           Navigator.pop(context);
         }
       } catch (e) {
-        // Si el error es una dependencia circular de Riverpod pero la operación se realizó
-        // (lo cual suele pasar si el estado se actualizó pero disparó un ciclo en la UI),
-        // permitimos que el usuario continúe ya que el producto sí se guardó.
         if (e.toString().contains('CircularDependencyError')) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -214,7 +211,22 @@ class ProductFormPage extends HookConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Nombre", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Nombre", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                            IconButton(
+                              icon: const Icon(Icons.info_outline, color: Colors.grey, size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _showInfoDialog(
+                                context, 
+                                "Nombre", 
+                                "El nombre comercial con el que identificas el producto en tus ventas y reportes."
+                              ),
+                            ),
+                          ],
+                        ),
                         TextFormField(
                           controller: nameController,
                           decoration: const InputDecoration(
@@ -226,7 +238,22 @@ class ProductFormPage extends HookConsumerWidget {
                           validator: (val) => val == null || val.isEmpty ? 'Obligatorio' : null,
                         ),
                         const SizedBox(height: 16),
-                        const Text("Cantidad disponible", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Cantidad disponible", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                            IconButton(
+                              icon: const Icon(Icons.info_outline, color: Colors.grey, size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _showInfoDialog(
+                                context, 
+                                "Cantidad disponible", 
+                                "Es el inventario físico actual que tienes para vender. Se descontará automáticamente con cada venta."
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
                         _buildCounter(stockController),
                       ],
@@ -238,8 +265,10 @@ class ProductFormPage extends HookConsumerWidget {
 
               // Campo 1: Precio de Venta
               _buildInputCard(
+                context: context,
                 label: "Precio de venta",
                 icon: Icons.payments_outlined,
+                infoText: "El precio final que paga el cliente. Debe ser mayor al costo para generar una ganancia.",
                 child: TextFormField(
                   controller: salePriceController,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: darkNavy),
@@ -256,8 +285,10 @@ class ProductFormPage extends HookConsumerWidget {
 
               // Campo 2: Costo Unitario
               _buildInputCard(
+                context: context,
                 label: "Costo unitario",
                 icon: Icons.payments_outlined,
+                infoText: "Lo que te cuesta a ti adquirir cada unidad. Es vital para calcular la rentabilidad de tu negocio.",
                 child: TextFormField(
                   controller: costPriceController,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
@@ -274,8 +305,10 @@ class ProductFormPage extends HookConsumerWidget {
 
               // Campo 3: Categoría
               _buildInputCard(
+                context: context,
                 label: "Categoría",
                 icon: Icons.category_outlined,
+                infoText: "Organiza tus productos por grupos para obtener mejores reportes y encontrarlos más rápido.",
                 child: categoriesAsync.when(
                   data: (categories) => DropdownButtonFormField<int>(
                     initialValue: selectedCategoryId.value,
@@ -293,8 +326,10 @@ class ProductFormPage extends HookConsumerWidget {
 
               // Campo 4: Descripción
               _buildInputCard(
+                context: context,
                 label: "Descripción",
                 icon: Icons.assignment_outlined,
+                infoText: "Detalles adicionales opcionales como marca, modelo o especificaciones del producto.",
                 child: TextFormField(
                   controller: descriptionController,
                   maxLines: 3,
@@ -333,7 +368,13 @@ class ProductFormPage extends HookConsumerWidget {
   }
 
   // Helper para construir las tarjetas de entrada
-  Widget _buildInputCard({required String label, required IconData icon, required Widget child}) {
+  Widget _buildInputCard({
+    required BuildContext context, 
+    required String label, 
+    required IconData icon, 
+    required Widget child,
+    String? infoText,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -357,8 +398,37 @@ class ProductFormPage extends HookConsumerWidget {
               Icon(icon, color: darkNavy, size: 22),
               const SizedBox(width: 12),
               Expanded(child: child),
-              const Icon(Icons.info_outline, color: Colors.grey, size: 18),
+              if (infoText != null)
+                IconButton(
+                  icon: const Icon(Icons.info_outline, color: Colors.grey, size: 18),
+                  onPressed: () => _showInfoDialog(context, label, infoText),
+                )
+              else
+                const Icon(Icons.info_outline, color: Colors.grey, size: 18),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInfoDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline, color: primaryYellow),
+            const SizedBox(width: 10),
+            Text(title, style: const TextStyle(color: darkNavy, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 15)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDIDO', style: TextStyle(color: darkNavy, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

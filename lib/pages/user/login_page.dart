@@ -252,22 +252,6 @@ class LoginPage extends HookConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Acción de ayuda
-        },
-        backgroundColor: whatsappGreen,
-        elevation: 4,
-        icon: const Icon(Icons.chat_bubble, color: Colors.white, size: 20),
-        label: const Text(
-          "Necesito ayuda",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-      ),
     );
   }
 }

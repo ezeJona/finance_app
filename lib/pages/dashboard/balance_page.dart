@@ -566,6 +566,11 @@ class BalancePage extends HookConsumerWidget {
                     return;
                   }
                   
+                  if (isInventorySale) {
+                    _showInventorySaleWarning(context);
+                    return;
+                  }
+
                   switch (value) {
                     case 'edit':
                       _showTransactionModal(context, ref, null, tx.type, transaction: tx);
@@ -622,6 +627,24 @@ class BalancePage extends HookConsumerWidget {
         title: const Text('Movimiento Protegido'),
         content: const Text(
           'Este movimiento corresponde al abono de una deuda. Para modificarlo o eliminarlo, por favor gestiona el abono desde el detalle de la deuda correspondiente.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDIDO', style: TextStyle(color: darkNavy, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInventorySaleWarning(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Movimiento de Venta'),
+        content: const Text(
+          'Este movimiento corresponde a una venta de inventario y no puede ser editado ni eliminado desde aquí. Si necesitas anular la venta, debes hacerlo desde el módulo de ventas.'
         ),
         actions: [
           TextButton(

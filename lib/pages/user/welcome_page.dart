@@ -25,17 +25,11 @@ class OnboardingScreen extends StatelessWidget {
                       width: double.infinity,
                       height: double.infinity,
                       color: Colors.grey[200], // Fondo provisional gris claro
-                      child: const Icon(
-                        Icons.image,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      /*
                       child: Image.asset(
-                        'assets/images/onboarding_bg.jpeg',
+                        'assets/bienvenida.png',
                         fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
                       ),
-                      */
                     ),
                   ],
                 ),
