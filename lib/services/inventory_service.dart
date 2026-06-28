@@ -96,11 +96,14 @@ class InventoryService {
 
         final updateReq = CreateProductReq(
           businessId: businessId,
+          categoryId: product.categoryId,
           name: product.name,
+          description: product.description,
           costPrice: product.costPrice,
           salePrice: product.salePrice,
           stock: newStock,
           minStock: product.minStock,
+          imageUrl: product.imageUrl,
         );
 
         if (isOnline) {

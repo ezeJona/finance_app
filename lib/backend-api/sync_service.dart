@@ -115,14 +115,7 @@ class SyncService {
             await ApiService.createTransactionItems(items);
             break;
           case 'update_product_stock':
-            await ApiService.updateProduct(payload['id'], CreateProductReq(
-              businessId: payload['business_id'],
-              name: payload['name'],
-              costPrice: payload['cost_price'],
-              salePrice: payload['sale_price'],
-              stock: payload['stock'],
-              minStock: payload['min_stock'],
-            ));
+            await ApiService.updateProduct(payload['id'], CreateProductReq.fromJson(payload));
             break;
           case 'soft_delete_product':
             await ApiService.softDeleteProduct(payload['id']);

@@ -14,7 +14,6 @@ class ProductFormPage extends HookConsumerWidget {
 
   const ProductFormPage({super.key, this.product});
 
-  // Constantes de diseño extraídas de la aplicación
   static const Color primaryYellow = Color(0xFFF1C40F);
   static const Color darkNavy = Color(0xFF2C3E50);
   static const Color incomeGreen = Color(0xFF00A86B);
