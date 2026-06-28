@@ -504,6 +504,32 @@ class DebtRes {
         "description": description,
         "created_at": createdAt.toIso8601String(),
       };
+
+  DebtRes copyWith({
+    String? id,
+    int? businessId,
+    String? type,
+    String? contactName,
+    double? totalAmount,
+    double? remainingAmount,
+    String? status,
+    DateTime? dueDate,
+    String? description,
+    DateTime? createdAt,
+  }) {
+    return DebtRes(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      type: type ?? this.type,
+      contactName: contactName ?? this.contactName,
+      totalAmount: totalAmount ?? this.totalAmount,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
+      status: status ?? this.status,
+      dueDate: dueDate ?? this.dueDate,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 class DebtPaymentRes {

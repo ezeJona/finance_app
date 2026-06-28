@@ -93,8 +93,20 @@ class SyncService {
           case 'create_debt':
             await ApiService.createDebt(CreateDebtReq.fromJson(payload));
             break;
+          case 'update_debt':
+            await ApiService.updateDebt(payload['id'], CreateDebtReq.fromJson(payload));
+            break;
+          case 'delete_debt':
+            await ApiService.deleteDebt(payload['id']);
+            break;
           case 'create_debt_payment':
             await ApiService.createDebtPayment(CreateDebtPaymentReq.fromJson(payload));
+            break;
+          case 'update_debt_payment':
+            await ApiService.updateDebtPayment(payload['id'], CreateDebtPaymentReq.fromJson(payload));
+            break;
+          case 'delete_debt_payment':
+            await ApiService.deleteDebtPayment(payload['id']);
             break;
           case 'delete_transaction':
             await ApiService.deleteTransaction(payload['id']);

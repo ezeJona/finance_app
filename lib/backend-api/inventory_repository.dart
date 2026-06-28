@@ -44,6 +44,18 @@ class InventoryRepository {
 
   static Future<List<ProductRes>> getProducts(int businessId) async {
     final cached = SyncService.getCachedProducts(businessId);
+    
+    // Si no hay nada en cache, esperamos el fetch remoto para que el usuario no vea "vío" en un login nuevo
+    if (cached.isEmpty && await SyncService.isOnline()) {
+      try {
+        final remote = await ApiService.getProductsByBusiness(businessId);
+        await SyncService.cacheProducts(businessId, remote);
+        return remote.where((p) => p.deletedAt == null).toList();
+      } catch (_) {
+        return [];
+      }
+    }
+
     _fetchAndCacheProducts(businessId);
     return cached.where((p) => p.deletedAt == null).toList();
   }

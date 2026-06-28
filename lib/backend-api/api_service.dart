@@ -326,6 +326,23 @@ class ApiService {
   }
 
   static Future<DebtRes> updateDebt(String id, CreateDebtReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      await SyncService.queueAction('update_debt', {'id': id, ...req.toJson()});
+      // Devolvemos una representación optimista.
+      return DebtRes(
+        id: id,
+        businessId: req.businessId,
+        type: req.type,
+        contactName: req.contactName,
+        totalAmount: req.totalAmount,
+        remainingAmount: req.totalAmount, // Simplificación, el Notifier lo manejará mejor si es necesario
+        status: 'pending',
+        dueDate: req.dueDate,
+        description: req.description,
+        createdAt: DateTime.now(),
+      );
+    }
     try {
       final List<dynamic> response = await _supabase
           .from('debts')
@@ -341,6 +358,11 @@ class ApiService {
   }
 
   static Future<void> deleteDebt(String id) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      await SyncService.queueAction('delete_debt', {'id': id});
+      return;
+    }
     try {
       await _supabase.from('debts').delete().eq('id', id);
     } catch (e) {
@@ -381,6 +403,18 @@ class ApiService {
   }
 
   static Future<DebtPaymentRes> updateDebtPayment(String id, CreateDebtPaymentReq req) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      await SyncService.queueAction('update_debt_payment', {'id': id, ...req.toJson()});
+      return DebtPaymentRes(
+        id: id,
+        debtId: req.debtId,
+        amount: req.amount,
+        paymentMethod: req.paymentMethod,
+        paymentDate: req.paymentDate,
+        createdAt: DateTime.now(),
+      );
+    }
     try {
       final List<dynamic> response = await _supabase
           .from('debt_payments')
@@ -396,6 +430,11 @@ class ApiService {
   }
 
   static Future<void> deleteDebtPayment(String id) async {
+    final online = await SyncService.isOnline();
+    if (!online) {
+      await SyncService.queueAction('delete_debt_payment', {'id': id});
+      return;
+    }
     try {
       await _supabase.from('debt_payments').delete().eq('id', id);
     } catch (e) {

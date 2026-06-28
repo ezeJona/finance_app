@@ -35,9 +35,24 @@ class ProfilePage extends HookConsumerWidget {
       backgroundColor: backgroundColor,
       drawer: const AppDrawer(),
       body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
+        child: RefreshIndicator(
+          color: primaryYellow,
+          onRefresh: () async {
+            try {
+              // Refrescar perfil de usuario desde red
+              await ref.read(appUserProvider.notifier).fetch();
+            } catch (_) {}
+            
+            ref.invalidate(businessesProvider);
+            ref.invalidate(achievementsProvider);
+            ref.invalidate(businessProductsProvider);
+            
+            // Pequeña espera para que la animación se vea fluida
+            await Future.delayed(const Duration(milliseconds: 800));
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
             SliverAppBar(
               expandedHeight: 220,
               pinned: true,
@@ -129,6 +144,7 @@ class ProfilePage extends HookConsumerWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
