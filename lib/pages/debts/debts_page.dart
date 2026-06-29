@@ -32,31 +32,78 @@ class DebtsPage extends HookConsumerWidget {
     return Scaffold(
       backgroundColor: backgroundColor,
       drawer: const AppDrawer(),
-      body: SafeArea(
-        child: Stack(
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              const AppHeader(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                child: _buildDebtsSummaryCard(business?.currencyCode ?? 'NIO', summary),
+              ),
+              Expanded(
+                child: debtsAsync.maybeWhen(
+                  data: (debts) => _buildDebtsContent(context, ref, debts, business),
+                  loading: () => debtsAsync.hasValue
+                      ? _buildDebtsContent(context, ref, debtsAsync.value!, business)
+                      : const Center(child: CircularProgressIndicator()),
+                  error: (e, st) => debtsAsync.hasValue
+                      ? _buildDebtsContent(context, ref, debtsAsync.value!, business)
+                      : _buildErrorPlaceholder(e, () => ref.read(debtsProvider.notifier).fetchDebts()),
+                  orElse: () => const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ],
+          ),
+          _buildBottomActionButtons(context, ref, business),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorPlaceholder(Object error, VoidCallback onRetry) {
+    final errorStr = error.toString().toLowerCase();
+    final bool isNetworkError = errorStr.contains('socketexception') || 
+                                errorStr.contains('host lookup') || 
+                                errorStr.contains('clientexception') ||
+                                errorStr.contains('connection');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Column(
-              children: [
-                const AppHeader(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                  child: _buildDebtsSummaryCard(business?.currencyCode ?? 'NIO', summary),
-                ),
-                Expanded(
-                  child: debtsAsync.maybeWhen(
-                    data: (debts) => _buildDebtsContent(context, ref, debts, business),
-                    loading: () => debtsAsync.hasValue
-                        ? _buildDebtsContent(context, ref, debtsAsync.value!, business)
-                        : const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => debtsAsync.hasValue
-                        ? _buildDebtsContent(context, ref, debtsAsync.value!, business)
-                        : Center(child: Text('Error: $e')),
-                    orElse: () => const Center(child: CircularProgressIndicator()),
-                  ),
-                ),
-              ],
+            Icon(
+              isNetworkError ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+              size: 70,
+              color: textGray.withOpacity(0.5),
             ),
-            _buildBottomActionButtons(context, ref, business),
+            const SizedBox(height: 20),
+            Text(
+              isNetworkError ? 'Sin conexión a Internet' : 'Algo salió mal',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              isNetworkError
+                ? 'No se pudieron cargar tus deudas. Por favor, conéctate a internet para sincronizar los datos.'
+                : 'Hubo un problema al cargar la información. Inténtalo de nuevo.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: textGray, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('REINTENTAR'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryYellow,
+                foregroundColor: darkNavy,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+            ),
           ],
         ),
       ),
@@ -202,26 +249,29 @@ class DebtsPage extends HookConsumerWidget {
   Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, BusinessRes? business) {
     return Align(
       alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                'POR COBRAR', 
-                incomeGreen, 
-                () => _showDebtModal(context, ref, business, 'to_collect')
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  'POR COBRAR', 
+                  incomeGreen, 
+                  () => _showDebtModal(context, ref, business, 'to_collect')
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionButton(
-                'POR PAGAR', 
-                expenseRed, 
-                () => _showDebtModal(context, ref, business, 'to_pay')
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  'POR PAGAR', 
+                  expenseRed, 
+                  () => _showDebtModal(context, ref, business, 'to_pay')
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -399,7 +449,17 @@ class DebtsPage extends HookConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: expenseRed));
+          final errorStr = e.toString().toLowerCase();
+          final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isNetwork 
+                ? 'Error de red: No se pudo eliminar la deuda' 
+                : 'No se pudo eliminar la deuda. Inténtalo de nuevo.'), 
+              backgroundColor: expenseRed
+            ),
+          );
         }
       }
     }
@@ -484,8 +544,16 @@ class _DebtFormState extends ConsumerState<_DebtForm> {
       }
     } catch (e) {
       if (mounted) {
+        final errorStr = e.toString().toLowerCase();
+        final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: DebtsPage.expenseRed),
+          SnackBar(
+            content: Text(isNetwork 
+              ? 'Error de red: Verifica tu conexión a internet' 
+              : 'Hubo un problema al guardar la deuda. Inténtalo de nuevo.'), 
+            backgroundColor: DebtsPage.expenseRed
+          ),
         );
       }
     } finally {
@@ -693,8 +761,16 @@ class _DebtPaymentFormState extends ConsumerState<_DebtPaymentForm> {
       }
     } catch (e) {
       if (mounted) {
+        final errorStr = e.toString().toLowerCase();
+        final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: DebtsPage.expenseRed),
+          SnackBar(
+            content: Text(isNetwork 
+              ? 'Error de red: No se pudo registrar el abono' 
+              : 'Ocurrió un error al procesar el pago. Inténtalo de nuevo.'), 
+            backgroundColor: DebtsPage.expenseRed
+          ),
         );
       }
     } finally {
@@ -880,7 +956,10 @@ class _DebtDetailsModal extends ConsumerWidget {
                     );
                   },
                   loading: () => const Center(child: LinearProgressIndicator()),
-                  error: (e, st) => Text("Error: $e", style: const TextStyle(fontSize: 12, color: DebtsPage.expenseRed)),
+                  error: (e, st) => const Text(
+                    "No se pudieron cargar los productos (sin conexión).", 
+                    style: TextStyle(fontSize: 12, color: DebtsPage.textGray)
+                  ),
                 );
               },
             ),
@@ -932,7 +1011,13 @@ class _DebtDetailsModal extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Text('Error: $e'),
+              error: (e, st) => const Center(
+                child: Text(
+                  'No se pudo cargar el historial. Verifica tu conexión.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: DebtsPage.textGray),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),

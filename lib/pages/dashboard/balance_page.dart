@@ -40,14 +40,13 @@ class BalancePage extends HookConsumerWidget {
     return Scaffold(
       backgroundColor: backgroundColor,
       drawer: const AppDrawer(),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                const AppHeader(),
-                Expanded(
-                  child: RefreshIndicator(
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              const AppHeader(),
+              Expanded(
+                child: RefreshIndicator(
                     color: primaryYellow,
                     onRefresh: () async {
                       await ref.read(transactionsProvider.notifier).refresh();
@@ -67,7 +66,7 @@ class BalancePage extends HookConsumerWidget {
                                 : const Center(child: LinearProgressIndicator()),
                             error: (err, stack) => historicAsync.hasValue
                                 ? _buildMetricsCard(historicAsync.value!, business?.currencyCode ?? 'NIO')
-                                : Text('Error en saldos: $err', style: const TextStyle(color: expenseRed)),
+                                : _buildErrorPlaceholder(err, () => ref.invalidate(historicTransactionsProvider)),
                             orElse: () => const Center(child: LinearProgressIndicator()),
                           ),
                         ),
@@ -78,7 +77,7 @@ class BalancePage extends HookConsumerWidget {
                               : const Center(child: CircularProgressIndicator()),
                           error: (err, stack) => transactionsAsync.hasValue
                               ? _buildTransactionContent(context, ref, transactionsAsync.value!, business, filter)
-                              : Center(child: Text('Error al cargar transacciones: $err')),
+                              : _buildErrorPlaceholder(err, () => ref.read(transactionsProvider.notifier).refresh()),
                           orElse: () => const Center(child: CircularProgressIndicator()),
                         ),
                       ],
@@ -88,6 +87,53 @@ class BalancePage extends HookConsumerWidget {
               ],
             ),
             _buildBottomActionButtons(context, ref, business),
+          ],
+        ),
+    );
+  }
+
+  Widget _buildErrorPlaceholder(Object error, VoidCallback onRetry) {
+    final errorStr = error.toString().toLowerCase();
+    final bool isNetworkError = errorStr.contains('socketexception') || 
+                                errorStr.contains('host lookup') || 
+                                errorStr.contains('clientexception') ||
+                                errorStr.contains('connection');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isNetworkError ? Icons.wifi_off_rounded : Icons.cloud_off_rounded,
+              size: 64,
+              color: textGray.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isNetworkError ? 'Sin conexión a Internet' : 'Algo salió mal',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isNetworkError
+                ? 'Lo sentimos, se requiere conexión a internet para descargar los datos de este negocio por primera vez.'
+                : 'Hubo un error al cargar la información. Por favor, intenta de nuevo.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: textGray),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('REINTENTAR'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryYellow,
+                foregroundColor: darkNavy,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ],
         ),
       ),
@@ -677,26 +723,29 @@ class BalancePage extends HookConsumerWidget {
   Widget _buildBottomActionButtons(BuildContext context, WidgetRef ref, BusinessRes? business) {
     return Align(
       alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                'NUEVO INGRESO', 
-                incomeGreen, 
-                () => _showTransactionModal(context, ref, business, 'income')
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  'NUEVO INGRESO', 
+                  incomeGreen, 
+                  () => _showTransactionModal(context, ref, business, 'income')
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionButton(
-                'NUEVO PAGO', 
-                expenseRed, 
-                () => _showTransactionModal(context, ref, business, 'expense')
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  'NUEVO PAGO', 
+                  expenseRed, 
+                  () => _showTransactionModal(context, ref, business, 'expense')
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -777,8 +826,16 @@ class BalancePage extends HookConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
+          final errorStr = e.toString().toLowerCase();
+          final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+          
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: expenseRed),
+            SnackBar(
+              content: Text(isNetwork 
+                ? 'Sin conexión: No se pudo eliminar el movimiento' 
+                : 'No se pudo completar la acción. Inténtalo de nuevo.'), 
+              backgroundColor: expenseRed
+            ),
           );
         }
       }
@@ -1016,9 +1073,13 @@ class _DigitalInvoiceModal extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (err, _) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text("Error al cargar detalles: $err"),
+              error: (err, _) => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  "No se pudieron cargar los detalles. Verifica tu conexión.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: BalancePage.textGray),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1147,7 +1208,10 @@ class _DebtPaymentInvoiceModal extends HookConsumerWidget {
                       );
                     },
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Text("Error al cargar productos: $e"),
+                    error: (e, st) => const Text(
+                      "No se pudieron cargar los productos (sin conexión).",
+                      style: TextStyle(color: BalancePage.textGray, fontSize: 12),
+                    ),
                   );
                 },
               )
@@ -1270,8 +1334,16 @@ class _TransactionFormState extends State<_TransactionForm> {
       }
     } catch (e) {
       if (mounted) {
+        final errorStr = e.toString().toLowerCase();
+        final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: BalancePage.expenseRed),
+          SnackBar(
+            content: Text(isNetwork 
+              ? 'Error de red: Verifica tu conexión a internet' 
+              : 'Hubo un problema al guardar los datos. Inténtalo más tarde.'), 
+            backgroundColor: BalancePage.expenseRed
+          ),
         );
       }
     } finally {

@@ -65,15 +65,15 @@ class StatisticsView extends HookConsumerWidget {
                     const SizedBox(height: 24),
 
                     // Sección 3: Feed de Alertas e Insights
-                    if (analytics.insights.isNotEmpty) ...[
-                      const Text(
-                        "Insights y Alertas",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
-                      ),
-                      const SizedBox(height: 12),
-                      ...analytics.insights.map((insight) => _buildInsightTile(insight)),
-                      const SizedBox(height: 24),
-                    ],
+                    const Text(
+                      "Insights y Alertas",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPendingAccountsCard(analytics, formatter),
+                    const SizedBox(height: 12),
+                    ...analytics.insights.map((insight) => _buildInsightTile(insight)),
+                    const SizedBox(height: 24),
 
                     // Sección 3.5: Semáforo de Gastos y Balance Neto
                     const Text(
@@ -278,7 +278,10 @@ class StatisticsView extends HookConsumerWidget {
                 ],
               ),
             ),
-            error: (err, stack) => Text("Error al cargar análisis: $err"),
+            error: (err, stack) => const Text(
+              "No se pudo conectar con Atlas IA. Verifica tu conexión a internet para generar un análisis.",
+              style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic),
+            ),
           ),
         ],
       ),
@@ -335,8 +338,6 @@ class StatisticsView extends HookConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            _buildPendingAccountsCard(analytics, formatter),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

@@ -34,8 +34,7 @@ class ProfilePage extends HookConsumerWidget {
     return Scaffold(
       backgroundColor: backgroundColor,
       drawer: const AppDrawer(),
-      body: SafeArea(
-        child: RefreshIndicator(
+      body: RefreshIndicator(
           color: primaryYellow,
           onRefresh: () async {
             try {
@@ -54,7 +53,7 @@ class ProfilePage extends HookConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
             SliverAppBar(
-              expandedHeight: 220,
+              expandedHeight: 240,
               pinned: true,
               backgroundColor: darkNavy,
               elevation: 0,
@@ -76,7 +75,7 @@ class ProfilePage extends HookConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 50),
                       _buildProfileAvatar(context, ref, appUser),
                       const SizedBox(height: 12),
                       Text(
@@ -122,29 +121,45 @@ class ProfilePage extends HookConsumerWidget {
                       padding: EdgeInsets.all(40.0),
                       child: CircularProgressIndicator(),
                     )),
-                    error: (err, _) => Center(child: Text("Error: $err")),
+                    error: (err, _) {
+                      final errorStr = err.toString().toLowerCase();
+                      final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Text(
+                            isNetwork 
+                              ? "Sin conexión para cargar tus negocios." 
+                              : "No se pudieron cargar tus negocios.",
+                            style: const TextStyle(color: textGray),
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 40),
 
-                  OutlinedButton.icon(
-                    onPressed: () => _confirmLogout(context, ref),
-                    icon: const Icon(Icons.logout, color: expenseRed),
-                    label: const Text(
-                      "CERRAR SESIÓN",
-                      style: TextStyle(color: expenseRed, fontWeight: FontWeight.bold),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: expenseRed, width: 1.2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  SafeArea(
+                    top: false,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmLogout(context, ref),
+                      icon: const Icon(Icons.logout, color: expenseRed),
+                      label: const Text(
+                        "CERRAR SESIÓN",
+                        style: TextStyle(color: expenseRed, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: expenseRed, width: 1.2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                     ),
                   ),
                 ]),
               ),
             ),
           ],
-        ),
         ),
       ),
     );
@@ -236,8 +251,16 @@ class ProfilePage extends HookConsumerWidget {
           }
         } catch (e) {
           if (context.mounted) {
+            final errorStr = e.toString().toLowerCase();
+            final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+            
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error al subir imagen: $e'), backgroundColor: expenseRed),
+              SnackBar(
+                content: Text(isNetwork 
+                  ? 'Error de red: No se pudo subir la imagen' 
+                  : 'No se pudo actualizar la foto de perfil.'), 
+                backgroundColor: expenseRed
+              ),
             );
           }
         }
@@ -448,8 +471,16 @@ class _EditProfileForm extends HookConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
+          final errorStr = e.toString().toLowerCase();
+          final isNetwork = errorStr.contains('socket') || errorStr.contains('host') || errorStr.contains('connection');
+          
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: ProfilePage.expenseRed),
+            SnackBar(
+              content: Text(isNetwork 
+                ? 'Sin conexión: No se pudieron guardar los cambios' 
+                : 'Hubo un problema al actualizar tu perfil.'), 
+              backgroundColor: ProfilePage.expenseRed
+            ),
           );
         }
       } finally {
@@ -628,7 +659,15 @@ class _BusinessCatalogCard extends HookConsumerWidget {
                       },
                     ),
                 loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                error: (_, __) => const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                error: (_, __) => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text(
+                      "Error de red", 
+                      style: TextStyle(fontSize: 10, color: ProfilePage.textGray)
+                    ),
+                  )
+                ),
               ),
             ),
 
